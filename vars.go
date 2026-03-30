@@ -37,6 +37,17 @@ const (
 	CurrencyUSD = currency("USD")
 )
 
+const (
+	DukptDesType EncryptionTypeEnum = iota + 1
+	MasterKeyType
+	Dukpt3DesType
+	Dukpt3DesCBCType
+)
+
+func (e EncryptionTypeEnum) String() string {
+	return [...]string{"DukptDes", "MasterKey", "Dukpt3Des", "Dukpt3DesCBC"}[e-1]
+}
+
 var (
 	SandboxEnvironment = Environment{
 		OAuthURL:    "https://authsandbox.cieloecommerce.cielo.com.br/oauth2/token",

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -46,7 +47,7 @@ func (c *Client) getToken() error {
 
 	err = json.NewDecoder(resp.Body).Decode(&token)
 	if err != nil {
-		return errors.New("could not parse 'getToken': " + err.Error())
+		return fmt.Errorf("could not decode 'getToken' response: %w", err)
 	}
 
 	c.token = &token
@@ -88,6 +89,8 @@ func (c *Client) handleTokenRefresh(ticker *time.Ticker) {
 	if nextIn <= 0 {
 		nextIn = 10 * time.Second
 	}
+
+	c.writeLog(fmt.Sprintf("Token refreshed successfully, next refresh in %s\n", nextIn.String()))
 
 	ticker.Reset(nextIn)
 }

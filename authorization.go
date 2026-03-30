@@ -1,20 +1,23 @@
 package go_cielo_conecta
 
-import "fmt"
+import (
+	"math"
+	"time"
+)
 
-// POST /1/physicalSales/
-func (c *Client) Authorization(s *Sale) (*Sale, error) {
-	salePayed := &Sale{}
-
-	req, err := c.NewRequest("POST", fmt.Sprintf("%s%s", c.env.APIUrl, "/1/physicalSales/"), s)
-	if err != nil {
-		return salePayed, err
+func (c *Client) CreatePayment(orderId string, amount float64, productId uint) SaleInterface {
+	p := Payment{
+		Installments:           1,
+		Interest:               ByMerchant, // Initialized with ByMerchant, but can be changed with SetInterest().
+		Capture:                true,
+		PaymentDateTime:        time.Now().Format("2006-01-02T15:04:05"),
+		Amount:                 uint64(math.Round(amount * 100)),
+		ProductId:              productId,
+		SubordinatedMerchantId: c.merchant.ID,
 	}
 
-	err = c.Send(req, &salePayed)
-	if err != nil {
-		return salePayed, err
-	}
-
-	return salePayed, nil
+	return NewSaleHandler(c, &Sale{
+		MerchantOrderId: orderId,
+		Payment:         &p,
+	})
 }

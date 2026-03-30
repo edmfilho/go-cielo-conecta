@@ -17,7 +17,7 @@ type (
 		merchant Merchant
 		env      Environment
 		token    *tokenResponse
-		Log      io.Writer
+		log      io.Writer
 
 		cancel context.CancelFunc
 		wg     sync.WaitGroup
@@ -61,43 +61,49 @@ type (
 	}
 
 	Payment struct {
-		Installments              int                `json:",omitempty"`
-		Type                      string             `json:",omitempty"`
-		Interest                  Interest           `json:",omitempty"`
-		Capture                   bool               `json:",omitempty"`
-		SoftDescriptor            string             `json:",omitempty"`
-		CreditCard                *CreditCard        `json:",omitempty"`
-		PaymentDateTime           string             `json:",omitempty"`
-		Amount                    uint64             `json:",omitempty"`
-		ProductId                 uint               `json:",omitempty"`
-		ReceivedDate              string             `json:",omitempty"`
-		CapturedAmount            uint64             `json:",omitempty"`
-		CapturedDate              string             `json:",omitempty"`
-		Provider                  string             `json:",omitempty"`
-		Status                    uint               `json:",omitempty"`
-		PhysicalTransactionStatus uint               `json:",omitempty"`
-		IsSplitted                bool               `json:",omitempty"`
-		ReturnMessage             string             `json:",omitempty"`
-		ExtendedMessage           string             `json:",omitempty"`
-		ReturnCode                string             `json:",omitempty"`
-		PaymentId                 string             `json:",omitempty"`
-		Currency                  string             `json:",omitempty"`
-		Country                   string             `json:",omitempty"`
-		Links                     []Link             `json:",omitempty"`
-		ServiceTaxAmount          uint64             `json:",omitempty"`
-		PinPadInformation         *PinPadInformation `json:",omitempty"`
-		PrintMessage              interface{}        `json:",omitempty"`
-		ReceiptInformation        map[string]any     `json:",omitempty"`
-		Receipt                   map[string]any     `json:",omitempty"`
-		AuthorizationCode         string             `json:",omitempty"`
-		ProofOfSale               string             `json:",omitempty"`
-		InitializationVersion     string             `json:",omitempty"`
-		ConfirmationStatus        uint               `json:",omitempty"`
-		EmvResponseData           string             `json:",omitempty"`
-		SubordinatedMerchantId    string             `json:",omitempty"`
-		OfflinePaymentType        string             `json:",omitempty"`
-		MerchantAcquirerId        string             `json:",omitempty"`
-		TerminalAcquirerId        string             `json:",omitempty"`
+		Installments              int                   `json:",omitempty"`
+		Type                      string                `json:",omitempty"`
+		Interest                  Interest              `json:",omitempty"`
+		Capture                   bool                  `json:",omitempty"` // Capture identifica que a autorização deve ser com captura automática. A autorização sem captura automática é conhecida também como pré-autorização.
+		SoftDescriptor            string                `json:",omitempty"`
+		CreditCard                *CreditCard           `json:",omitempty"`
+		PaymentDateTime           string                `json:",omitempty"`
+		Amount                    uint64                `json:",omitempty"`
+		ProductId                 uint                  `json:",omitempty"`
+		ReceivedDate              string                `json:",omitempty"`
+		CapturedAmount            uint64                `json:",omitempty"`
+		CapturedDate              string                `json:",omitempty"`
+		Provider                  string                `json:",omitempty"`
+		Status                    uint                  `json:",omitempty"`
+		PhysicalTransactionStatus uint                  `json:",omitempty"`
+		IsSplitted                bool                  `json:",omitempty"`
+		ReturnMessage             string                `json:",omitempty"`
+		ExtendedMessage           string                `json:",omitempty"`
+		ReturnCode                string                `json:",omitempty"`
+		PaymentId                 string                `json:",omitempty"`
+		Currency                  string                `json:",omitempty"`
+		Country                   string                `json:",omitempty"`
+		Links                     []*Link               `json:",omitempty"`
+		ServiceTaxAmount          uint64                `json:",omitempty"`
+		PinPadInformation         *PinPadInformation    `json:",omitempty"`
+		PrintMessage              interface{}           `json:",omitempty"`
+		ReceiptInformation        []*ReceiptInformation `json:",omitempty"`
+		Receipt                   map[string]any        `json:",omitempty"`
+		AuthorizationCode         string                `json:",omitempty"`
+		ProofOfSale               string                `json:",omitempty"`
+		InitializationVersion     int64                 `json:",omitempty"`
+		ConfirmationStatus        uint                  `json:",omitempty"`
+		EmvResponseData           string                `json:",omitempty"`
+		SubordinatedMerchantId    string                `json:",omitempty"`
+		OfflinePaymentType        string                `json:",omitempty"`
+		MerchantAcquirerId        string                `json:",omitempty"`
+		TerminalAcquirerId        string                `json:",omitempty"`
+	}
+
+	ReceiptInformation struct {
+		Field   string `json:",omitempty"`
+		Label   string `json:",omitempty"`
+		Content string `json:",omitempty"`
 	}
 
 	Link struct {
@@ -138,12 +144,11 @@ type (
 	}
 
 	EncryptedCardData struct {
-		EncryptionType       EncryptionType `json:",omitempty"`
-		TrackOneDataKSN      string         `json:",omitempty"`
-		TrackTwoDataKSN      string         `json:",omitempty"`
-		InitializationVector string         `json:",omitempty"`
-
-		IsDataInTLVFormat bool `json:",omitempty"`
+		EncryptionType       EncryptionTypeEnum `json:",omitempty"`
+		TrackOneDataKSN      string             `json:",omitempty"`
+		TrackTwoDataKSN      string             `json:",omitempty"`
+		InitializationVector string             `json:",omitempty"`
+		IsDataInTLVFormat    bool               `json:",omitempty"`
 	}
 
 	PinPadInformation struct {
@@ -160,11 +165,13 @@ type (
 	InputMode               string
 	AuthenticationMethod    string
 	SecurityCodeStatus      string
-	EncryptionType          string
 	PhysicalCharacteristics string
+	EncryptionType          string
 
 	currency string
 )
+
+type EncryptionTypeEnum uint
 
 type Environment struct {
 	OAuthURL     string

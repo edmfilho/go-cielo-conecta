@@ -10,20 +10,26 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 )
 
 type ClientInterface interface {
 	Close()
-	LogWithWriter(io.Writer)
+	SetLogger(io.Writer)
 
 	NewRequest(method, path string, body any) (*http.Request, error)
 	NewRequestWithContext(ctx context.Context, method, path string, body any) (*http.Request, error)
 	Send(req *http.Request, body any) error
 
-	Authorization(s *Sale) (*Sale, error)
+	CreatePayment(orderId string, amount float64, productId uint) SaleInterface
+	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
 }
 
-// NewClient ini
+// NewClient creates a new instance of the Cielo Conecta API client. It requires a Merchant struct containing
+// the merchant's credentials and an Environment struct with the necessary API URLs. The function validates the input
+// parameters, initializes the client, retrieves an access token, and starts a background goroutine to refresh the token
+// as needed. If any required fields are missing or if there is an error during token retrieval, it returns an error.
+// Otherwise, it returns a pointer to the initialized Client instance.
 func NewClient(m Merchant, env Environment) (ClientInterface, error) {
 	if m.ID == "" || m.Secret == "" || env.APIUrl == "" || env.OAuthURL == "" || env.APIQueryUrl == "" || env.ParamsURL == "" {
 		return nil, errors.New("merchantId, merchantSecret and environment fields are required")
@@ -38,6 +44,7 @@ func NewClient(m Merchant, env Environment) (ClientInterface, error) {
 		env:      env,
 		token:    nil,
 		cancel:   cancel,
+		log:      os.Stdout, // Default logger is stdout, can be changed to SetLogger.
 	}
 
 	err := c.getToken()
@@ -45,17 +52,21 @@ func NewClient(m Merchant, env Environment) (ClientInterface, error) {
 		return nil, err
 	}
 
+	c.writeLog("Successfully got 'getToken' at " + time.Now().Format(time.RFC3339) + "\n")
+
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
 		c.refreshToken(ctx)
 	}()
 
-	c.logStdOut() // Default logger is stdout, can be changed to LogWithWriter.
-
 	return &c, nil
 }
 
+// NewRequest creates a new HTTP request with the specified method, path, and body.
+// If the body is not nil, it encodes it as JSON and includes it in the request.
+//
+// The function returns the created HTTP request or an error if there was an issue encoding the body.
 func (c *Client) NewRequest(method, path string, body any) (*http.Request, error) {
 	var buf bytes.Buffer
 	if body != nil {
@@ -68,6 +79,10 @@ func (c *Client) NewRequest(method, path string, body any) (*http.Request, error
 	return http.NewRequest(method, path, &buf)
 }
 
+// NewRequestWithContext creates a new HTTP request with the specified context, method, path, and body.
+// If the body is not nil, it encodes it as JSON and includes it in the request.
+//
+// The function returns the created HTTP request or an error if there was an issue encoding the body.
 func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body any) (*http.Request, error) {
 	var buf io.Reader
 	if body != nil {
@@ -82,6 +97,12 @@ func (c *Client) NewRequestWithContext(ctx context.Context, method, path string,
 	return http.NewRequestWithContext(ctx, method, path, buf)
 }
 
+// Send sends an HTTP request and decodes the response into the provided variable.
+// It sets the necessary headers for authentication and content type, and logs the request and response.
+//
+// If the response status code indicates an error (not in the 200-299 range), it attempts to decode the error response
+// and returns it. If there is an issue decoding the response, it returns an error with the status code and decoding error.
+// If the request is successful, it decodes the response body into the provided variable.
 func (c *Client) Send(req *http.Request, v any) error {
 	if v == nil {
 		return nil
@@ -115,42 +136,4 @@ func (c *Client) Send(req *http.Request, v any) error {
 	}
 
 	return json.NewDecoder(resp.Body).Decode(v)
-}
-
-func (c *Client) logger(r *http.Request, resp *http.Response) {
-	if c.Log == nil {
-		return
-	}
-
-	var (
-		requestDump  string
-		responseDump string
-	)
-
-	if r != nil {
-		requestDump = fmt.Sprintf("%s -> %s", r.Method, r.URL.String())
-	}
-
-	if resp != nil {
-		// copy response body to avoid consuming it
-		bodyCopy := bytes.NewBuffer(nil)
-		_, err := io.Copy(bodyCopy, resp.Body)
-		if err != nil {
-			responseDump = fmt.Sprintf("status=%s, error_copying_body=%v", resp.Status, err)
-		} else {
-			responseDump = fmt.Sprintf("status=%s, response=%s", resp.Status, bodyCopy.String())
-
-			// reset original response body for further processing
-			resp.Body = io.NopCloser(bodyCopy)
-		}
-	}
-
-	_, _ = c.Log.Write([]byte(fmt.Sprintf("[CieloConecta] Request: %s \n[CieloConecta] Response: %s \n", requestDump, responseDump)))
-}
-
-func (c *Client) logStdOut() {
-	c.Log = os.Stdout
-}
-func (c *Client) LogWithWriter(w io.Writer) {
-	c.Log = w
 }
