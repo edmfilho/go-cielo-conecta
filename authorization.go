@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+// CreatePayment initializes a new payment with the provided order ID, amount, and product ID.
+// It sets default values for installments, interest, capture, and payment date/time.
+// The amount is converted to cents and rounding to the nearest integer.
+//
+// The method returns a SaleInterface that can be used to further customize the sale or execute it.
 func (c *Client) CreatePayment(orderId string, amount float64, productId uint) SaleInterface {
 	p := Payment{
 		Installments:           1,
@@ -16,7 +21,7 @@ func (c *Client) CreatePayment(orderId string, amount float64, productId uint) S
 		SubordinatedMerchantId: c.merchant.ID,
 	}
 
-	return NewSaleHandler(c, &Sale{
+	return newSaleHandler(c, &Sale{
 		MerchantOrderId: orderId,
 		Payment:         &p,
 	})

@@ -7,22 +7,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 )
 
 type ClientInterface interface {
-	Close()
-	SetLogger(io.Writer)
-
 	NewRequest(method, path string, body any) (*http.Request, error)
 	NewRequestWithContext(ctx context.Context, method, path string, body any) (*http.Request, error)
 	Send(req *http.Request, body any) error
 
 	CreatePayment(orderId string, amount float64, productId uint) SaleInterface
 	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
+
+	Close()
+	SetLogger(slog *slog.Logger)
 }
 
 // NewClient creates a new instance of the Cielo Conecta API client. It requires a Merchant struct containing
@@ -37,22 +37,23 @@ func NewClient(m Merchant, env Environment) (ClientInterface, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var c = Client{
+	c := Client{
 		Mutex:    sync.Mutex{},
 		Client:   &http.Client{},
 		merchant: m,
 		env:      env,
 		token:    nil,
 		cancel:   cancel,
-		log:      os.Stdout, // Default logger is stdout, can be changed to SetLogger.
 	}
+
+	c.DefaultLogger()
 
 	err := c.getToken()
 	if err != nil {
 		return nil, err
 	}
 
-	c.writeLog("Successfully got 'getToken' at " + time.Now().Format(time.RFC3339) + "\n")
+	c.writeLog(fmt.Sprintf("Successfully got access_token, expires in %s", (c.token.ExpiresIn * time.Second).String()))
 
 	c.wg.Add(1)
 	go func() {

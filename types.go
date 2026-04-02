@@ -3,7 +3,7 @@ package go_cielo_conecta
 import (
 	"context"
 	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -17,7 +17,7 @@ type (
 		merchant Merchant
 		env      Environment
 		token    *tokenResponse
-		log      io.Writer
+		log      *slog.Logger
 
 		cancel context.CancelFunc
 		wg     sync.WaitGroup

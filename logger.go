@@ -4,9 +4,34 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
-	"strings"
+	"os"
+	"time"
 )
+
+type requestLog struct {
+	Request  string `json:"request"`
+	Response string `json:"response,omitempty"`
+
+	Status string `json:"status"`
+	Code   int    `json:"-"`
+}
+
+func (req requestLog) LogValue() slog.Value {
+	if req.Response == "" {
+		return slog.GroupValue(
+			slog.String("request", req.Request),
+			slog.String("status", req.Status),
+		)
+	}
+
+	return slog.GroupValue(
+		slog.String("request", req.Request),
+		slog.String("response", req.Response),
+		slog.String("status", req.Status),
+	)
+}
 
 func (c *Client) logger(r *http.Request, resp *http.Response) {
 	if c.log == nil {
@@ -14,33 +39,47 @@ func (c *Client) logger(r *http.Request, resp *http.Response) {
 	}
 
 	var (
-		requestDump  string
-		responseDump string
+		bodyCopy *bytes.Buffer
+		logger   requestLog
 	)
 
-	if r != nil {
-		requestDump = fmt.Sprintf("%s -> %s", r.Method, r.URL.String())
+	logger = requestLog{
+		Request: fmt.Sprintf("%s %s", r.Method, r.URL.String()),
+		Status:  resp.Status,
+		Code:    resp.StatusCode,
 	}
 
-	if resp != nil {
-		// copy response body to avoid consuming it
-		bodyCopy := bytes.NewBuffer(nil)
+	if logger.Code < 200 || logger.Code > 299 {
 		_, err := io.Copy(bodyCopy, resp.Body)
 		if err != nil {
-			responseDump = fmt.Sprintf("status=%s, error_copying_body=%v", resp.Status, err)
+			logger.Response = fmt.Sprintf(" (could not read response body: %v)", err)
 		} else {
-			responseDump = fmt.Sprintf("status=%s, response=%s", resp.Status, bodyCopy.String())
-
-			// reset original response body for further processing
+			logger.Response = bodyCopy.String()
 			resp.Body = io.NopCloser(bodyCopy)
 		}
+
+		c.log.Error("Error executing the request.", "result", logger)
+		return
 	}
 
-	_, _ = c.log.Write([]byte(fmt.Sprintf("[CieloConecta] Request: %s \n[CieloConecta] Response: %s \n", requestDump, responseDump)))
+	c.log.Info("Request performed successfully.", "result", logger)
 }
 
-func (c *Client) SetLogger(w io.Writer) {
-	c.log = w
+func (c *Client) SetLogger(slog *slog.Logger) {
+	c.log = slog.With("component", "go-cielo-conecta-client")
+}
+
+func (c *Client) DefaultLogger() {
+	l := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				a.Value = slog.StringValue(time.Now().Format(time.RFC3339))
+			}
+			return a
+		},
+	}))
+
+	c.log = l.With("component", "go-cielo-conecta-client")
 }
 
 func (c *Client) writeLog(message string) {
@@ -48,12 +87,5 @@ func (c *Client) writeLog(message string) {
 		return
 	}
 
-	if strings.HasSuffix(message, "\n") {
-		_, _ = c.log.Write([]byte(fmt.Sprintf("[CieloConecta] %s", message)))
-		return
-	}
-
-	if c.log != nil {
-		_, _ = c.log.Write([]byte(fmt.Sprintf("[CieloConecta] %s\n", message)))
-	}
+	c.log.Info(message)
 }

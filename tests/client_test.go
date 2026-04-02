@@ -7,7 +7,7 @@ import (
 import . "github.com/edmfilho/go-cielo-conecta"
 
 func TestNewClient(t *testing.T) {
-	var merchant = Merchant{
+	merchant := Merchant{
 		ID:     os.Getenv("MERCHANT_ID"),
 		Secret: os.Getenv("MERCHANT_SECRET"),
 	}

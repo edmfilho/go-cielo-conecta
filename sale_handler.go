@@ -23,7 +23,7 @@ type SaleHandler struct {
 	Sale   *Sale
 }
 
-func NewSaleHandler(client *Client, s *Sale) SaleInterface {
+func newSaleHandler(client *Client, s *Sale) SaleInterface {
 	return &SaleHandler{client: client, Sale: s}
 }
 
