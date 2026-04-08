@@ -58,7 +58,7 @@ func (c *Client) getToken() error {
 func (c *Client) refreshToken(ctx context.Context) {
 	waitDuration := (c.token.ExpiresIn * time.Second) - (5 * time.Minute)
 	if waitDuration <= 0 {
-		waitDuration = time.Second
+		waitDuration = 10 * time.Second
 	}
 
 	ticker := time.NewTicker(waitDuration)
@@ -66,21 +66,21 @@ func (c *Client) refreshToken(ctx context.Context) {
 
 	for {
 		select {
-		case <-ctx.Done():
-			return
 		case <-ticker.C:
 			c.handleTokenRefresh(ticker)
+		case <-ctx.Done():
+			return
 		}
 	}
 }
 
-func (c *Client) handleTokenRefresh(ticker *time.Ticker) {
+func (c *Client) handleTokenRefresh(t *time.Ticker) {
 	c.Mutex.Lock()
 	defer c.Mutex.Unlock()
 
 	err := c.getToken()
 	if err != nil {
-		ticker.Reset(time.Minute) // Try again in 1 minute if it was failed
+		t.Reset(time.Minute) // Try again in 1 minute if it was failed
 		return
 	}
 
@@ -92,7 +92,7 @@ func (c *Client) handleTokenRefresh(ticker *time.Ticker) {
 
 	c.writeLog(fmt.Sprintf("Token refreshed successfully, next refresh in %s\n", nextIn.String()))
 
-	ticker.Reset(nextIn)
+	t.Reset(nextIn)
 }
 
 // Close cancels the token refresh goroutine and waits for it to finish.
