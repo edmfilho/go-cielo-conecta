@@ -74,7 +74,7 @@ type (
 		CapturedAmount            uint64                `json:",omitempty"`
 		CapturedDate              string                `json:",omitempty"`
 		Provider                  string                `json:",omitempty"`
-		Status                    uint                  `json:",omitempty"`
+		Status                    StatusPayment         `json:",omitempty"`
 		PhysicalTransactionStatus uint                  `json:",omitempty"`
 		IsSplitted                bool                  `json:",omitempty"`
 		ReturnMessage             string                `json:",omitempty"`
@@ -157,8 +157,15 @@ type (
 		SerialNumber            string                  `json:",omitempty"`
 		TerminalID              string                  `json:",omitempty"`
 	}
-)
 
+	ConfirmPayment struct {
+		ConfirmationStatus uint16  `json:",omitempty"`
+		Status             uint16  `json:",omitempty"`
+		ReturnCode         string  `json:",omitempty"`
+		ReturnMessage      string  `json:",omitempty"`
+		Links              []*Link `json:",omitempty"`
+	}
+)
 type (
 	IdentityType            string
 	Interest                string
@@ -172,6 +179,7 @@ type (
 )
 
 type EncryptionTypeEnum uint
+type StatusPayment uint
 
 type Environment struct {
 	OAuthURL     string

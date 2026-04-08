@@ -48,6 +48,25 @@ func (e EncryptionTypeEnum) String() string {
 	return [...]string{"DukptDes", "MasterKey", "Dukpt3Des", "Dukpt3DesCBC"}[e-1]
 }
 
+const (
+	Pending StatusPayment = iota + 1
+	Confirmed
+	Cancelled
+	Reversed
+	Processing
+	Denied
+	Unreachable
+	WaitingValidation
+	WaitingCapture
+	RefundedDevolution
+	Refunded
+	Approved
+)
+
+func (s StatusPayment) String() string {
+	return [...]string{"Pending", "Confirmed", "Cancelled", "Reversed", "Processing", "Denied", "Unreachable", "WaitingValidation", "WaitingCapture", "RefundedDevolution", "Refunded", "Approved"}[s-1]
+}
+
 var (
 	SandboxEnvironment = Environment{
 		OAuthURL:    "https://authsandbox.cieloecommerce.cielo.com.br/oauth2/token",

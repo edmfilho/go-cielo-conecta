@@ -3,11 +3,12 @@ package go_cielo_conecta
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 type SaleInterface interface {
 	GetSale() *Sale
-	Exec() (*Sale, error)
+	Authorization() (*Sale, error)
 
 	WithCreditCardOnlinePassword(cc *CreditCard) SaleInterface
 
@@ -62,8 +63,10 @@ func (h *SaleHandler) WithCreditCardOnlinePassword(cc *CreditCard) SaleInterface
 	return h
 }
 
+// Authorization validates the sale data and sends a request to the API to authorize the payment.
+// It returns the authorized sale or an error if the validation fails or if there is an issue with the API request.
 // POST /1/physicalSales/
-func (h *SaleHandler) Exec() (*Sale, error) {
+func (h *SaleHandler) Authorization() (*Sale, error) {
 	salePayed := &Sale{}
 
 	if err := h.validate(); err != nil {
@@ -80,7 +83,56 @@ func (h *SaleHandler) Exec() (*Sale, error) {
 		return salePayed, err
 	}
 
+	h.Sale = salePayed
+
 	return salePayed, nil
+}
+
+// Confirm confirms a payment with the provided issuer script results.
+// It validates the sale data and sends a request to the API to confirm the payment.
+// It returns the confirmation result or an error if the validation fails or if there is an issue with the API request.
+//
+// PUT /1/physicalSales/{PaymentId}/confirmation
+func (h *SaleHandler) Confirm(issuerScriptResults string) (*ConfirmPayment, error) {
+	if h.Sale == nil {
+		return nil, errors.New("sale not initialized")
+	}
+
+	if issuerScriptResults == "" {
+		return nil, errors.New("issuerScriptResults not initialized")
+	}
+
+	if h.Sale.Payment.PaymentId == "" {
+		return nil, errors.New("payment id is required")
+	}
+
+	if h.Sale.Payment.Status != Confirmed {
+		return nil, fmt.Errorf("payment is not confirmed: status=%s", h.Sale.Payment.Status)
+	}
+
+	i := slices.IndexFunc(h.Sale.Payment.Links, func(link *Link) bool { return link.Rel == "confirm" })
+
+	var (
+		urlConfirm = h.Sale.Payment.Links[i].Href
+		method     = h.Sale.Payment.Links[i].Method
+		body       = make(map[string]string)
+		result     = &ConfirmPayment{}
+	)
+
+	body["EmvData"] = h.Sale.Payment.CreditCard.EmvData
+	body["IssuerScriptResults"] = issuerScriptResults
+
+	req, err := h.client.NewRequest(method, urlConfirm, body)
+	if err != nil {
+		return result, err
+	}
+
+	err = h.client.Send(req, &result)
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
 }
 
 func (h *SaleHandler) validate() error {

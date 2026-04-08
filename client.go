@@ -20,6 +20,8 @@ type ClientInterface interface {
 
 	CreatePayment(orderId string, amount float64, productId uint) SaleInterface
 	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
+	GetPaymentByID(paymentID string, transactionDate ...time.Time) (*Sale, error)
+	GetPaymentByMerchantOrderID(merchantOrderID string, transactionDate ...time.Time) (*Sale, error)
 
 	Close()
 	SetLogger(slog *slog.Logger)
