@@ -1,10 +1,19 @@
 package go_cielo_conecta
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"time"
+)
+
+// GetParam defines the type for parameters used in GetPaymentBy method to specify the search criteria (PaymentId or MerchantOrderId).
+type GetParam string
+
+var (
+	PaymentID       = GetParam("PaymentId")
+	MerchantOrderID = GetParam("MerchantOrderId")
 )
 
 // CreatePayment initializes a new payment with the provided order ID, amount, and product ID.
@@ -29,42 +38,29 @@ func (c *Client) CreatePayment(orderId string, amount float64, productId uint) S
 	})
 }
 
-// GetPaymentByID retrieves a payment by its unique identifier (PaymentId).
-// It constructs the appropriate API query URL and sends a GET request to the Cielo Conecta API.
+// GetPaymentBy retrieves a payment based on the specified parameter (PaymentId or MerchantOrderId) and query value.
+// It constructs the appropriate endpoint URL based on the parameter and query, and optionally includes a transaction date.
+// The method sends a GET request to the API and returns the retrieved Sale object or an error if the request fails.
 //
-// GET {APIQueryUrl}/1/physicalSales/{PaymentId}
-func (c *Client) GetPaymentByID(paymentID string, transactionDate ...time.Time) (sale *Sale, err error) {
+// GET /1/physicalSales/{PaymentId}
+// GET /1/physicalSales/MerchantOrderId/{MerchantOrderId}
+func (c *Client) GetPaymentBy(param GetParam, query string, transactionDate ...time.Time) (sale *Sale, err error) {
 	var (
-		query = fmt.Sprintf("/1/physicalSales/%s", paymentID)
-		req   *http.Request
+		req      *http.Request
+		endpoint = "/1/physicalSales"
 	)
 
-	if len(transactionDate) > 0 {
-		query += fmt.Sprintf("?transactionDate=%s", transactionDate[0].Format("2006/01/02"))
+	switch param {
+	case PaymentID:
+		endpoint += fmt.Sprintf("/%s", query)
+	case MerchantOrderID:
+		endpoint += fmt.Sprintf("/MerchantOrderId/%s", query)
+	default:
+		return nil, errors.New("invalid param")
 	}
-
-	req, err = c.NewRequest("GET", fmt.Sprintf("%s%s", c.env.APIQueryUrl, query), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.Send(req, &sale)
-	if err != nil {
-		return nil, err
-	}
-
-	return sale, nil
-}
-
-// GET {APIQueryUrl}/1/physicalSales/MerchantOrderId/{MerchantOrderId}
-func (c *Client) GetPaymentByMerchantOrderID(merchantOrderID string, transactionDate ...time.Time) (sale *Sale, err error) {
-	var (
-		query = fmt.Sprintf("/1/physicalSales/MerchantOrderId/%s", merchantOrderID)
-		req   *http.Request
-	)
 
 	if len(transactionDate) > 0 {
-		query += fmt.Sprintf("?transactionDate=%s", transactionDate[0].Format("2006/01/02"))
+		endpoint += fmt.Sprintf("?transactionDate=%s", transactionDate[0].Format("2006/01/02"))
 	}
 
 	req, err = c.NewRequest("GET", fmt.Sprintf("%s%s", c.env.APIQueryUrl, query), nil)
