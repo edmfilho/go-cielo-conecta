@@ -7,10 +7,11 @@ import (
 )
 
 type SaleInterface interface {
-	GetSale() *Sale
-	Authorization() (*Sale, error)
+	GetSale() Sale
+	Authorization() (Sale, error)
 
-	WithCreditCardOnlinePassword(cc *CreditCard) SaleInterface
+	WithCreditCard(cc *CreditCard) SaleInterface
+	WithDebitCard(dc *DebitCard) SaleInterface
 
 	SetInstallments(installments int) SaleInterface
 	SetInterest(interestType Interest) SaleInterface
@@ -54,8 +55,8 @@ func (h *SaleHandler) SetInterest(interestType Interest) SaleInterface {
 	return h
 }
 
-func (h *SaleHandler) GetSale() *Sale {
-	return h.Sale
+func (h *SaleHandler) GetSale() Sale {
+	return *h.Sale
 }
 
 func (h *SaleHandler) SetInstallments(installments int) SaleInterface {
@@ -63,17 +64,25 @@ func (h *SaleHandler) SetInstallments(installments int) SaleInterface {
 	return h
 }
 
-func (h *SaleHandler) WithCreditCardOnlinePassword(cc *CreditCard) SaleInterface {
+func (h *SaleHandler) WithCreditCard(cc *CreditCard) SaleInterface {
 	h.Sale.Payment.CreditCard = cc
+	h.Sale.Payment.DebitCard = nil
 	h.Sale.Payment.Type = "PhysicalCreditCard"
+	return h
+}
+
+func (h *SaleHandler) WithDebitCard(dc *DebitCard) SaleInterface {
+	h.Sale.Payment.CreditCard = nil
+	h.Sale.Payment.DebitCard = dc
+	h.Sale.Payment.Type = "PhysicalDebitCard"
 	return h
 }
 
 // Authorization validates the sale data and sends a request to the API to authorize the payment.
 // It returns the authorized sale or an error if the validation fails or if there is an issue with the API request.
 // POST /1/physicalSales/
-func (h *SaleHandler) Authorization() (*Sale, error) {
-	salePayed := &Sale{}
+func (h *SaleHandler) Authorization() (Sale, error) {
+	salePayed := Sale{}
 
 	if err := h.validate(); err != nil {
 		return salePayed, err
@@ -89,7 +98,7 @@ func (h *SaleHandler) Authorization() (*Sale, error) {
 		return salePayed, err
 	}
 
-	h.Sale = salePayed
+	h.Sale = &salePayed
 
 	return salePayed, nil
 }

@@ -2,6 +2,7 @@ package go_cielo_conecta
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -67,6 +68,7 @@ type (
 		Capture                   bool                  `json:",omitempty"` // Capture identifica que a autorização deve ser com captura automática. A autorização sem captura automática é conhecida também como pré-autorização.
 		SoftDescriptor            string                `json:",omitempty"`
 		CreditCard                *CreditCard           `json:",omitempty"`
+		DebitCard                 *DebitCard            `json:",omitempty"`
 		PaymentDateTime           string                `json:",omitempty"`
 		Amount                    uint64                `json:",omitempty"`
 		ProductId                 uint                  `json:",omitempty"`
@@ -115,21 +117,42 @@ type (
 	CreditCard struct {
 		InputMode                      InputMode            `json:",omitempty"`
 		ExpirationDate                 string               `json:",omitempty"`
+		AuthenticationMethod           AuthenticationMethod `json:",omitempty"`
+		IssuerId                       int                  `json:",omitempty"`
+		BrandId                        int                  `json:",omitempty"`
 		TrackOneData                   string               `json:",omitempty"`
 		TrackTwoData                   string               `json:",omitempty"`
-		EncryptedCardData              EncryptedCardData    `json:",omitempty"`
 		EmvData                        string               `json:",omitempty"`
-		IssuerId                       int                  `json:",omitempty"`
+		EncryptedCardData              EncryptedCardData    `json:",omitempty"`
 		SecurityCodeStatus             SecurityCodeStatus   `json:",omitempty"`
 		SecurityCode                   string               `json:",omitempty"`
 		TruncateCardNumberWhenPrinting bool                 `json:",omitempty"`
 		SaveCard                       bool                 `json:",omitempty"`
 		PanSequenceNumber              uint                 `json:",omitempty"`
 		IsFallback                     bool                 `json:",omitempty"`
-		AuthenticationMethod           AuthenticationMethod `json:",omitempty"`
-		BrandId                        int                  `json:",omitempty"`
 		BrandInformation               BrandInformation     `json:",omitempty"`
 		PinBlock                       PinBlock             `json:",omitempty"`
+	}
+
+	DebitCard struct {
+		InputMode                      InputMode            `json:",omitempty"`
+		ExpirationDate                 string               `json:",omitempty"`
+		AuthenticationMethod           AuthenticationMethod `json:",omitempty"`
+		IssuerId                       uint                 `json:",omitempty"`
+		BrandId                        uint                 `json:",omitempty"`
+		TruncateCardNumberWhenPrinting bool                 `json:",omitempty"`
+		PanSequenceNumber              uint                 `json:",omitempty"`
+		SaveCard                       bool                 `json:",omitempty"`
+		EmvData                        string               `json:",omitempty"`
+		TrackOneData                   string               `json:",omitempty"`
+		TrackTwoData                   string               `json:",omitempty"`
+		EncryptedCardData              EncryptedCardData    `json:",omitempty"`
+		PinBlock                       PinBlock             `json:",omitempty"`
+		IsFallback                     bool                 `json:",omitempty"`
+		CardToken                      string               `json:",omitempty"`
+		BrandInformation               BrandInformation     `json:",omitempty"`
+		SecurityCodeStatus             SecurityCodeStatus   `json:",omitempty"`
+		SecurityCode                   string               `json:",omitempty"`
 	}
 
 	BrandInformation struct {
@@ -193,4 +216,14 @@ type Environment struct {
 // Error method implementation for ErrorResponse
 func (er ErrorResponse) Error() string {
 	return fmt.Sprintf("%v %v: %3d %s", er.Response.Request.Method, er.Response.Request.URL, er.Response.StatusCode, er.Message)
+}
+
+// JSON returns the JSON representation of any struct.
+func JSON(v any) string {
+	jsonBytes, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+
+	return string(jsonBytes)
 }
