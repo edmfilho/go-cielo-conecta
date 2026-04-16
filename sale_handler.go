@@ -25,7 +25,13 @@ type SaleHandler struct {
 }
 
 func newSaleHandler(client *Client, s *Sale) SaleInterface {
-	return &SaleHandler{client: client, Sale: s}
+	return &SaleHandler{
+		client: client,
+		Sale: &Sale{
+			MerchantOrderId: s.MerchantOrderId,
+			Payment:         s.Payment,
+		},
+	}
 }
 
 func (h *SaleHandler) SetSoftDescriptor(softDesc string) SaleInterface {
@@ -93,13 +99,9 @@ func (h *SaleHandler) Authorization() (*Sale, error) {
 // It returns the confirmation result or an error if the validation fails or if there is an issue with the API request.
 //
 // PUT /1/physicalSales/{PaymentId}/confirmation
-func (h *SaleHandler) Confirm(issuerScriptResults string) (*ConfirmPayment, error) {
+func (h *SaleHandler) Confirm(issuerScriptResults ...string) (result *ConfirmResponse, err error) {
 	if h.Sale == nil {
 		return nil, errors.New("sale not initialized")
-	}
-
-	if issuerScriptResults == "" {
-		return nil, errors.New("issuerScriptResults not initialized")
 	}
 
 	if h.Sale.Payment.PaymentId == "" {
@@ -116,11 +118,14 @@ func (h *SaleHandler) Confirm(issuerScriptResults string) (*ConfirmPayment, erro
 		urlConfirm = h.Sale.Payment.Links[i].Href
 		method     = h.Sale.Payment.Links[i].Method
 		body       = make(map[string]string)
-		result     = &ConfirmPayment{}
 	)
 
 	body["EmvData"] = h.Sale.Payment.CreditCard.EmvData
-	body["IssuerScriptResults"] = issuerScriptResults
+	body["IssuerScriptResults"] = "0000"
+
+	if len(issuerScriptResults) > 0 {
+		body["IssuerScriptResults"] = issuerScriptResults[0]
+	}
 
 	req, err := h.client.NewRequest(method, urlConfirm, body)
 	if err != nil {

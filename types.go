@@ -158,9 +158,10 @@ type (
 		TerminalID              string                  `json:",omitempty"`
 	}
 
-	ConfirmPayment struct {
+	ConfirmResponse struct {
 		ConfirmationStatus uint16  `json:",omitempty"`
 		Status             uint16  `json:",omitempty"`
+		ReasonCode         uint16  `json:",omitempty"`
 		ReturnCode         string  `json:",omitempty"`
 		ReturnMessage      string  `json:",omitempty"`
 		Links              []*Link `json:",omitempty"`

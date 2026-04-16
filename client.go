@@ -22,6 +22,8 @@ type ClientInterface interface {
 	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
 	GetPaymentBy(param GetParam, query string, transactionDate ...time.Time) (*Sale, error)
 
+	CancelPayment(sale Sale) (CancelInterface, error)
+
 	Close()
 	SetLogger(slog *slog.Logger)
 }

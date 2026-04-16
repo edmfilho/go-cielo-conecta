@@ -75,3 +75,12 @@ func (c *Client) GetPaymentBy(param GetParam, query string, transactionDate ...t
 
 	return sale, nil
 }
+
+func (c *Client) CancelPayment(sale Sale) (CancelInterface, error) {
+	cancel, err := newCancelHandler(c, sale)
+	if err != nil {
+		return nil, err
+	}
+
+	return cancel, nil
+}
