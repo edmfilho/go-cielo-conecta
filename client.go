@@ -28,12 +28,11 @@ type ClientInterface interface {
 	SetLogger(slog *slog.Logger)
 }
 
-// NewClient creates a new instance of the Cielo Conecta API client. It requires a Merchant struct containing
-// the merchant's credentials and an Environment struct with the necessary API URLs. The function validates the input
-// parameters, initializes the client, retrieves an access token, and starts a background goroutine to refresh the token
-// as needed. If any required fields are missing or if there is an error during token retrieval, it returns an error.
-// Otherwise, it returns a pointer to the initialized Client instance.
-func NewClient(m Merchant, env Environment) (ClientInterface, error) {
+// NewClient creates a new instance of the Client struct with the provided merchant information, environment configuration, and optional logger.
+//
+// The function initializes a new Client struct, retrieves an access token, and starts a goroutine to refresh the token periodically.
+// If the token retrieval is successful, it returns the initialized Client instance. Otherwise, it returns an error.
+func NewClient(m Merchant, env Environment, log ...*slog.Logger) (ClientInterface, error) {
 	if m.ID == "" || m.Secret == "" || env.APIUrl == "" || env.OAuthURL == "" || env.APIQueryUrl == "" || env.ParamsURL == "" {
 		return nil, errors.New("merchantId, merchantSecret and environment fields are required")
 	}
@@ -49,7 +48,11 @@ func NewClient(m Merchant, env Environment) (ClientInterface, error) {
 		cancel:   cancel,
 	}
 
-	c.DefaultLogger()
+	if len(log) > 0 {
+		c.SetLogger(log[0])
+	} else {
+		c.DefaultLogger()
+	}
 
 	err := c.getToken()
 	if err != nil {
