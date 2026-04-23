@@ -54,6 +54,12 @@ const (
 	Approved
 )
 
+const (
+	Pendente ConfirmationStatus = iota
+	Confirmado
+	Desfeito
+)
+
 var (
 	SandboxEnvironment = Environment{
 		OAuthURL:    "https://authsandbox.cieloecommerce.cielo.com.br/oauth2/token",

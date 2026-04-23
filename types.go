@@ -182,12 +182,12 @@ type (
 	}
 
 	ConfirmResponse struct {
-		ConfirmationStatus uint16  `json:",omitempty"`
-		Status             uint16  `json:",omitempty"`
-		ReasonCode         uint16  `json:",omitempty"`
-		ReturnCode         string  `json:",omitempty"`
-		ReturnMessage      string  `json:",omitempty"`
-		Links              []*Link `json:",omitempty"`
+		ConfirmationStatus ConfirmationStatus `json:",omitempty"`
+		Status             uint16             `json:",omitempty"`
+		ReasonCode         uint16             `json:",omitempty"`
+		ReturnCode         string             `json:",omitempty"`
+		ReturnMessage      string             `json:",omitempty"`
+		Links              []*Link            `json:",omitempty"`
 	}
 )
 type (
@@ -201,8 +201,11 @@ type (
 	currency string
 )
 
-type EncryptionType uint
-type StatusPayment uint
+type (
+	EncryptionType     uint
+	StatusPayment      uint
+	ConfirmationStatus uint
+)
 
 type Environment struct {
 	OAuthURL     string

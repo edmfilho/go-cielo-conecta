@@ -94,3 +94,37 @@ func (s *StatusPayment) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+func (c *ConfirmationStatus) String() string {
+	return [...]string{"Pendente", "Confirmado", "Desfeito"}[*c]
+}
+
+func (c *ConfirmationStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
+
+func (c *ConfirmationStatus) UnmarshalJSON(data []byte) error {
+	var asInt int
+	if err := json.Unmarshal(data, &asInt); err == nil {
+		*c = ConfirmationStatus(asInt)
+		return nil
+	}
+
+	var asString string
+	if err := json.Unmarshal(data, &asString); err != nil {
+		return err
+	}
+
+	switch strings.ToLower(asString) {
+	case "pendente":
+		*c = Pendente
+	case "confirmado":
+		*c = Confirmado
+	case "desfeito":
+		*c = Desfeito
+	default:
+		return fmt.Errorf("invalid ConfirmationStatus=%s", asString)
+	}
+
+	return nil
+}
