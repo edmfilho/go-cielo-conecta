@@ -28,25 +28,16 @@ const (
 	Unreadable  SecurityCodeStatus = "Unreadable"
 	Nonexistent SecurityCodeStatus = "Nonexistent"
 
-	DukptDes     EncryptionType = "DukptDes"
-	MasterKey    EncryptionType = "MasterKey"
-	Dukpt3Des    EncryptionType = "Dukpt3Des"
-	Dukpt3DesCBC EncryptionType = "Dukpt3DesCBC"
-
 	CurrencyBRL = currency("BRL")
 	CurrencyUSD = currency("USD")
 )
 
 const (
-	DukptDesType EncryptionTypeEnum = iota + 1
-	MasterKeyType
-	Dukpt3DesType
-	Dukpt3DesCBCType
+	DukptDes EncryptionType = iota + 1
+	MasterKey
+	Dukpt3Des
+	Dukpt3DesCBC
 )
-
-func (e EncryptionTypeEnum) String() string {
-	return [...]string{"DukptDes", "MasterKey", "Dukpt3Des", "Dukpt3DesCBC"}[e-1]
-}
 
 const (
 	Pending StatusPayment = iota + 1
@@ -62,10 +53,6 @@ const (
 	Refunded
 	Approved
 )
-
-func (s StatusPayment) String() string {
-	return [...]string{"Pending", "Confirmed", "Cancelled", "Reversed", "Processing", "Denied", "Unreachable", "WaitingValidation", "WaitingCapture", "RefundedDevolution", "Refunded", "Approved"}[s-1]
-}
 
 var (
 	SandboxEnvironment = Environment{

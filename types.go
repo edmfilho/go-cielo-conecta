@@ -167,11 +167,11 @@ type (
 	}
 
 	EncryptedCardData struct {
-		EncryptionType       EncryptionTypeEnum `json:",omitempty"`
-		TrackOneDataKSN      string             `json:",omitempty"`
-		TrackTwoDataKSN      string             `json:",omitempty"`
-		InitializationVector string             `json:",omitempty"`
-		IsDataInTLVFormat    bool               `json:",omitempty"`
+		EncryptionType       EncryptionType `json:",omitempty"`
+		TrackOneDataKSN      string         `json:",omitempty"`
+		TrackTwoDataKSN      string         `json:",omitempty"`
+		InitializationVector string         `json:",omitempty"`
+		IsDataInTLVFormat    bool           `json:",omitempty"`
 	}
 
 	PinPadInformation struct {
@@ -197,12 +197,11 @@ type (
 	AuthenticationMethod    string
 	SecurityCodeStatus      string
 	PhysicalCharacteristics string
-	EncryptionType          string
 
 	currency string
 )
 
-type EncryptionTypeEnum uint
+type EncryptionType uint
 type StatusPayment uint
 
 type Environment struct {
