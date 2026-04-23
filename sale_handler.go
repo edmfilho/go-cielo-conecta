@@ -9,7 +9,7 @@ import (
 type SaleInterface interface {
 	GetSale() Sale
 	Authorization() (Sale, error)
-	Confirm(issuerScriptResults ...string) (*ConfirmResponse, error)
+	Confirm(emvData string, issuerScriptResults ...string) (*ConfirmResponse, error)
 
 	WithCreditCard(cc *CreditCard) SaleInterface
 	WithDebitCard(dc *DebitCard) SaleInterface
@@ -109,13 +109,13 @@ func (h *SaleHandler) Authorization() (Sale, error) {
 // It returns the confirmation result or an error if the validation fails or if there is an issue with the API request.
 //
 // PUT /1/physicalSales/{PaymentId}/confirmation
-func (h *SaleHandler) Confirm(issuerScriptResults ...string) (result *ConfirmResponse, err error) {
+func (h *SaleHandler) Confirm(emvData string, issuerScriptResults ...string) (result *ConfirmResponse, err error) {
 	if h.Sale == nil {
 		return nil, errors.New("sale not initialized")
 	}
 
 	if h.Sale.Payment.PaymentId == "" {
-		return nil, errors.New("payment id is required")
+		return nil, errors.New("payment_id is required")
 	}
 
 	if h.Sale.Payment.Status != Confirmed {
@@ -130,7 +130,7 @@ func (h *SaleHandler) Confirm(issuerScriptResults ...string) (result *ConfirmRes
 		body       = make(map[string]string)
 	)
 
-	body["EmvData"] = h.Sale.Payment.CreditCard.EmvData
+	body["EmvData"] = emvData
 	body["IssuerScriptResults"] = "0000"
 
 	if len(issuerScriptResults) > 0 {
