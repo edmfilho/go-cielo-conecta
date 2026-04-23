@@ -9,6 +9,7 @@ import (
 type SaleInterface interface {
 	GetSale() Sale
 	Authorization() (Sale, error)
+	Confirm(issuerScriptResults ...string) (*ConfirmResponse, error)
 
 	WithCreditCard(cc *CreditCard) SaleInterface
 	WithDebitCard(dc *DebitCard) SaleInterface
