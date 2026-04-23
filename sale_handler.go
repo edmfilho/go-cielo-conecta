@@ -109,7 +109,7 @@ func (h *SaleHandler) Authorization() (Sale, error) {
 // It returns the confirmation result or an error if the validation fails or if there is an issue with the API request.
 //
 // PUT /1/physicalSales/{PaymentId}/confirmation
-func (h *SaleHandler) Confirm(emvData string, issuerScriptResults ...string) (result *ConfirmResponse, err error) {
+func (h *SaleHandler) Confirm(emvData string, issuerScriptResults ...string) (*ConfirmResponse, error) {
 	if h.Sale == nil {
 		return nil, errors.New("sale not initialized")
 	}
@@ -137,17 +137,19 @@ func (h *SaleHandler) Confirm(emvData string, issuerScriptResults ...string) (re
 		body["IssuerScriptResults"] = issuerScriptResults[0]
 	}
 
+	var result ConfirmResponse
+
 	req, err := h.client.NewRequest(method, urlConfirm, body)
 	if err != nil {
-		return result, err
+		return &result, err
 	}
 
 	err = h.client.Send(req, &result)
 	if err != nil {
-		return result, err
+		return &result, err
 	}
 
-	return result, nil
+	return &result, nil
 }
 
 func (h *SaleHandler) validate() error {

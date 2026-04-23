@@ -123,13 +123,13 @@ func (c *Client) Send(req *http.Request, v any) error {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token.AccessToken))
 
 	resp, err := c.Client.Do(req)
-	c.logger(req, resp)
-
 	if err != nil {
 		return err
 	}
 
 	defer resp.Body.Close()
+
+	c.logger(req, resp)
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		var errResp = []ErrorResponse{{Response: resp}}

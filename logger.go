@@ -1,9 +1,7 @@
 package go_cielo_conecta
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -38,27 +36,14 @@ func (c *Client) logger(r *http.Request, resp *http.Response) {
 		return
 	}
 
-	var (
-		bodyCopy *bytes.Buffer
-		logger   requestLog
-	)
-
-	logger = requestLog{
+	logger := requestLog{
 		Request: fmt.Sprintf("%s %s", r.Method, r.URL.String()),
 		Status:  resp.Status,
 		Code:    resp.StatusCode,
 	}
 
 	if logger.Code < 200 || logger.Code > 299 {
-		_, err := io.Copy(bodyCopy, resp.Body)
-		if err != nil {
-			logger.Response = fmt.Sprintf(" (could not read response body: %v)", err)
-		} else {
-			logger.Response = bodyCopy.String()
-			resp.Body = io.NopCloser(bodyCopy)
-		}
-
-		c.log.Error("Error executing the request.", "result", logger)
+		c.log.Error("Error executing the request", "result", logger)
 		return
 	}
 
@@ -66,7 +51,7 @@ func (c *Client) logger(r *http.Request, resp *http.Response) {
 }
 
 func (c *Client) SetLogger(slog *slog.Logger) {
-	c.log = slog.With("component", "go-cielo-conecta-client")
+	c.log = slog.With("source", "cielo-conecta-client")
 }
 
 func (c *Client) DefaultLogger() {
@@ -79,7 +64,7 @@ func (c *Client) DefaultLogger() {
 		},
 	}))
 
-	c.log = l.With("component", "go-cielo-conecta-client")
+	c.log = l.With("source", "cielo-conecta-client")
 }
 
 func (c *Client) writeLog(message string) {
