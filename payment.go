@@ -29,7 +29,7 @@ func (c *Client) CreatePayment(orderId string, amount float64, productId uint) S
 		PaymentDateTime:        time.Now().Format("2006-01-02T15:04:05"),
 		Amount:                 uint64(math.Round(amount * 100)),
 		ProductId:              productId,
-		SubordinatedMerchantId: c.merchant.ID,
+		SubordinatedMerchantId: c.env.merchant.ID,
 	}
 
 	return newSaleHandler(c, &Sale{
@@ -38,9 +38,50 @@ func (c *Client) CreatePayment(orderId string, amount float64, productId uint) S
 	})
 }
 
+// ConfirmPayment confirms a payment with the provided issuer script results.
+// Returns the confirmation result or an error if the validation fails or if there is an issue with the API requestBody.
+//
+// PUT /1/physicalSales/{PaymentId}/confirmation
+func (c *Client) ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error) {
+	if authorizedSale.Payment == nil {
+		return ConfirmResponse{}, ErrPaymentIsRequired
+	}
+
+	if authorizedSale.Payment.Status != StatusPaymentConfirmed {
+		return ConfirmResponse{}, fmt.Errorf("payment information is not confirmed: status=%s, message=%s %s", authorizedSale.Payment.Status, authorizedSale.Payment.ExtendedMessage, authorizedSale.Payment.ReturnMessage)
+	}
+
+	link := authorizedSale.Payment.getLink("confirm")
+	if link == nil {
+		return ConfirmResponse{}, fmt.Errorf("could not confirm this payment, status=%s, message=%s %s", authorizedSale.Payment.Status, authorizedSale.Payment.ExtendedMessage, authorizedSale.Payment.ReturnMessage)
+	}
+
+	var body = map[string]string{}
+
+	body["EmvData"] = authorizedSale.Payment.getEmvData()
+	body["IssuerScriptResults"] = "0000"
+	if len(issuerScriptResults) > 0 {
+		body["IssuerScriptResults"] = issuerScriptResults[0]
+	}
+
+	req, err := c.NewRequest(link.Method, link.Href, body)
+	if err != nil {
+		return ConfirmResponse{}, err
+	}
+
+	var resp ConfirmResponse
+
+	err = c.Send(req, &resp)
+	if err != nil {
+		return ConfirmResponse{}, err
+	}
+
+	return resp, nil
+}
+
 // GetPaymentBy retrieves a payment based on the specified parameter (PaymentId or MerchantOrderId) and query value.
 // It constructs the appropriate endpoint URL based on the parameter and query, and optionally includes a transaction date.
-// The method sends a GET request to the API and returns the retrieved Sale object or an error if the request fails.
+// The method sends a GET requestBody to the API and returns the retrieved Sale object or an error if the requestBody fails.
 //
 // GET /1/physicalSales/{PaymentId}
 // GET /1/physicalSales/MerchantOrderId/{MerchantOrderId}
@@ -76,11 +117,15 @@ func (c *Client) GetPaymentBy(param GetParam, query string, transactionDate ...t
 	return sale, nil
 }
 
-func (c *Client) CancelPayment(sale Sale) (CancelInterface, error) {
-	cancel, err := newCancelHandler(c, sale)
+func (c *Client) ReversePayment(s Sale, issuerScriptsResults ...string) (ConfirmResponse, error) {
+	cancel, err := newCancelHandler(c, s, issuerScriptsResults...)
 	if err != nil {
-		return nil, err
+		return ConfirmResponse{}, err
 	}
 
-	return cancel, nil
+	if s.Payment.PaymentId != "" {
+		return cancel.ReverseWithPaymentID()
+	}
+
+	return cancel.ReverseWithOrderID()
 }

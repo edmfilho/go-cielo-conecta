@@ -1,5 +1,7 @@
 package go_cielo_conecta
 
+import "errors"
+
 const (
 	ByMerchant Interest = "ByMerchant"
 	ByIssuer   Interest = "ByIssuer"
@@ -40,24 +42,29 @@ const (
 )
 
 const (
-	Pending StatusPayment = iota + 1
-	Confirmed
-	Cancelled
-	Reversed
-	Processing
-	Denied
-	Unreachable
-	WaitingValidation
-	WaitingCapture
-	RefundedDevolution
-	Refunded
-	Approved
+	StatusPaymentUnknown StatusPayment = iota
+	StatusPaymentPending
+	StatusPaymentConfirmed
+	StatusPaymentCancelled
+	StatusPaymentReversed
+	StatusPaymentProcessing
+	StatusPaymentDenied
+	StatusPaymentUnreachable
+	StatusPaymentWaitingValidation
+	StatusPaymentWaitingCapture
+	StatusPaymentRefundedDevolution
+	StatusPaymentRefunded
+	StatusPaymentApproved
 )
 
 const (
 	Pendente ConfirmationStatus = iota
 	Confirmado
 	Desfeito
+)
+
+var (
+	ErrPaymentIsRequired = errors.New("payment information is required")
 )
 
 var (

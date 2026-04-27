@@ -18,7 +18,7 @@ func (c *Client) SharedLibrary(terminalID string, subMerchantId ...string) (map[
 		data map[string]any
 	)
 
-	path = strings.Replace(c.env.ParamsURL, "{SubordinatedMerchantId}", c.merchant.ID, 1)
+	path = strings.Replace(c.env.ParamsURL, "{SubordinatedMerchantId}", c.env.merchant.ID, 1)
 
 	if len(subMerchantId) > 0 {
 		path = strings.Replace(c.env.ParamsURL, "{SubordinatedMerchantId}", subMerchantId[0], 1)

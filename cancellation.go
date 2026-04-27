@@ -3,92 +3,78 @@ package go_cielo_conecta
 import (
 	"errors"
 	"fmt"
-	"net/http"
 )
 
 type CancelInterface interface {
-	UndoWithPaymentID(issuerScriptsResults ...string) (*ConfirmResponse, error)
-	UndoWithMerchantOrderID(issuerScriptsResults ...string) (*ConfirmResponse, error)
+	ReverseWithPaymentID() (ConfirmResponse, error)
+	ReverseWithOrderID() (ConfirmResponse, error)
 }
 
 type CancelHandler struct {
-	client *Client
-	sale   *Sale
+	client       *Client
+	sale         Sale
+	requestBody  map[string]string
+	urlPaymentID string
 }
 
-func newCancelHandler(client *Client, sale Sale) (CancelInterface, error) {
-	if sale.Payment == nil {
-		return nil, errors.New("payment is required")
+func newCancelHandler(c *Client, s Sale, issuerScriptsResults ...string) (CancelInterface, error) {
+	if s.Payment == nil {
+		return nil, ErrPaymentIsRequired
 	}
 
-	if sale.Payment.CreditCard == nil {
-		return nil, errors.New("credit_card is required")
+	if s.Payment.CreditCard == nil && s.Payment.DebitCard == nil {
+		return nil, errors.New("Sale.Payment.CreditCard or Sale.Payment.DebitCard is required")
 	}
 
-	ss := &Sale{
-		MerchantOrderId: sale.MerchantOrderId,
-		Payment:         sale.Payment,
+	var body map[string]string
+
+	link := s.Payment.getLink("reverse")
+	if link == nil {
+		return nil, fmt.Errorf("could not reverse this payment, status=%s, message=%s %s", s.Payment.Status, s.Payment.ExtendedMessage, s.Payment.ReturnMessage)
 	}
 
-	return &CancelHandler{
-		client: client,
-		sale:   ss,
-	}, nil
-}
-
-func (h *CancelHandler) UndoWithPaymentID(issuerScriptsResults ...string) (result *ConfirmResponse, err error) {
-	var (
-		body = map[string]string{}
-		url  = h.client.env.APIUrl
-		req  *http.Request
-	)
-
-	body["EmvData"] = h.sale.Payment.CreditCard.EmvData
+	body["EmvData"] = s.Payment.getEmvData()
 	body["IssuerScriptResults"] = "0000"
 
 	if len(issuerScriptsResults) > 0 {
 		body["IssuerScriptResults"] = issuerScriptsResults[0]
 	}
 
-	url += fmt.Sprintf("%s%s", "/1/physicalSales/", h.sale.Payment.PaymentId)
+	return &CancelHandler{client: c, sale: s, requestBody: body, urlPaymentID: link.Href}, nil
+}
 
-	req, err = h.client.NewRequest("DELETE", url, body)
+func (h *CancelHandler) ReverseWithPaymentID() (ConfirmResponse, error) {
+	var result ConfirmResponse
+
+	req, err := h.client.NewRequest("DELETE", h.urlPaymentID, h.requestBody)
 	if err != nil {
-		return nil, err
+		return ConfirmResponse{}, err
 	}
 
 	err = h.client.Send(req, &result)
 	if err != nil {
-		return nil, err
+		return ConfirmResponse{}, err
 	}
 
 	return result, nil
 }
 
-func (h *CancelHandler) UndoWithMerchantOrderID(issuerScriptsResults ...string) (result *ConfirmResponse, err error) {
+func (h *CancelHandler) ReverseWithOrderID() (ConfirmResponse, error) {
 	var (
-		body = map[string]string{}
-		url  = h.client.env.APIUrl
-		req  *http.Request
+		result ConfirmResponse
+		url    = h.client.env.APIUrl
 	)
-
-	body["EmvData"] = h.sale.Payment.CreditCard.EmvData
-	body["IssuerScriptResults"] = "0000"
-
-	if len(issuerScriptsResults) > 0 {
-		body["IssuerScriptResults"] = issuerScriptsResults[0]
-	}
 
 	url += fmt.Sprintf("%s%s", "/1/physicalSales/orderId/", h.sale.MerchantOrderId)
 
-	req, err = h.client.NewRequest("DELETE", url, body)
+	req, err := h.client.NewRequest("DELETE", url, h.requestBody)
 	if err != nil {
-		return nil, err
+		return ConfirmResponse{}, err
 	}
 
 	err = h.client.Send(req, &result)
 	if err != nil {
-		return nil, err
+		return ConfirmResponse{}, err
 	}
 
 	return result, nil

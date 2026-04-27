@@ -9,7 +9,7 @@ import (
 )
 
 type requestLog struct {
-	Request  string `json:"request"`
+	Request  string `json:"requestBody"`
 	Response string `json:"response,omitempty"`
 
 	Status string `json:"status"`
@@ -19,13 +19,13 @@ type requestLog struct {
 func (req requestLog) LogValue() slog.Value {
 	if req.Response == "" {
 		return slog.GroupValue(
-			slog.String("request", req.Request),
+			slog.String("requestBody", req.Request),
 			slog.String("status", req.Status),
 		)
 	}
 
 	return slog.GroupValue(
-		slog.String("request", req.Request),
+		slog.String("requestBody", req.Request),
 		slog.String("response", req.Response),
 		slog.String("status", req.Status),
 	)
@@ -43,7 +43,7 @@ func (c *Client) logger(r *http.Request, resp *http.Response) {
 	}
 
 	if logger.Code < 200 || logger.Code > 299 {
-		c.log.Error("Error executing the request", "result", logger)
+		c.log.Error("Error executing the requestBody", "result", logger)
 		return
 	}
 

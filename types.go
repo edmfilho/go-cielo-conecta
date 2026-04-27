@@ -2,10 +2,10 @@ package go_cielo_conecta
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -14,15 +14,23 @@ type (
 	Client struct {
 		sync.Mutex
 
-		Client   *http.Client
-		merchant Merchant
-		env      Environment
-		token    *tokenResponse
-		log      *slog.Logger
+		Client *http.Client
+		env    Environment
+		token  *tokenResponse
+		log    *slog.Logger
 
 		cancel context.CancelFunc
 		wg     sync.WaitGroup
 		once   sync.Once
+	}
+
+	Environment struct {
+		OAuthURL     string
+		ParamsURL    string
+		APIUrl       string
+		APIQueryUrl  string
+		Homologation bool
+		merchant     Merchant
 	}
 
 	tokenResponse struct {
@@ -39,6 +47,10 @@ type (
 		Response *http.Response `json:"-"`
 		Code     int            `json:",omitempty"`
 		Message  string         `json:",omitempty"`
+	}
+
+	MultiError struct {
+		Errors []ErrorResponse `json:"errors"`
 	}
 
 	Sale struct {
@@ -207,25 +219,47 @@ type (
 	ConfirmationStatus uint
 )
 
-type Environment struct {
-	OAuthURL     string
-	ParamsURL    string
-	APIUrl       string
-	APIQueryUrl  string
-	Homologation bool
+func (e Environment) WithMerchant(m Merchant) Environment {
+	e.merchant = m
+	return e
 }
 
 // Error method implementation for ErrorResponse
 func (er ErrorResponse) Error() string {
-	return fmt.Sprintf("%v %v: %3d %s", er.Response.Request.Method, er.Response.Request.URL, er.Response.StatusCode, er.Message)
+	return fmt.Sprintf("%s %s: %3d %s", er.Response.Request.Method, er.Response.Request.URL, er.Response.StatusCode, er.Message)
 }
 
-// JSON returns the JSON representation of any struct.
-func JSON(v any) string {
-	jsonBytes, err := json.Marshal(v)
-	if err != nil {
-		return ""
+func (er MultiError) Error() string {
+	var msgs []string
+	for _, err := range er.Errors {
+		msgs = append(msgs, err.Error())
 	}
 
-	return string(jsonBytes)
+	return strings.Join(msgs, "; ")
+}
+
+func (p Payment) getLink(rel string) *Link {
+	if len(p.Links) == 0 {
+		return nil
+	}
+
+	for _, l := range p.Links {
+		if l.Rel == rel {
+			return l
+		}
+	}
+
+	return nil
+}
+
+func (p Payment) getEmvData() string {
+	if p.CreditCard != nil {
+		return p.CreditCard.EmvData
+	}
+
+	if p.DebitCard != nil {
+		return p.CreditCard.EmvData
+	}
+
+	return ""
 }

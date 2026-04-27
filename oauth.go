@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +15,7 @@ func (c *Client) getToken() error {
 
 	req, err := http.NewRequest("POST", c.env.OAuthURL, body)
 	if err != nil {
-		return errors.New("could not create request on 'getToken': " + err.Error())
+		return fmt.Errorf("cielo.getToken: %v", err)
 	}
 
 	if c.env.Homologation {
@@ -24,30 +23,42 @@ func (c *Client) getToken() error {
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(c.merchant.ID, c.merchant.Secret)
+	req.SetBasicAuth(c.env.merchant.ID, c.env.merchant.Secret)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.New("could not send request on 'getToken': " + err.Error())
+		return fmt.Errorf("cielo.getToken: %v", err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		errResp := &ErrorResponse{Response: resp}
+		var errResp = ErrorResponse{Response: resp}
+		var errsResp = MultiError{[]ErrorResponse{errResp}}
+
 		data, err := io.ReadAll(resp.Body)
-		if err == nil && len(data) > 0 {
-			_ = json.Unmarshal(data, errResp)
+		if err != nil {
+			return ErrorResponse{Message: http.StatusText(resp.StatusCode), Code: resp.StatusCode}
 		}
 
-		return errResp
+		err = json.Unmarshal(data, &errResp)
+		if err == nil {
+			return errResp
+		}
+
+		err = json.Unmarshal(data, &errsResp)
+		if err == nil {
+			return errsResp
+		}
+
+		return fmt.Errorf("cielo.getToken: %v", err)
 	}
 
 	var token tokenResponse
 
 	err = json.NewDecoder(resp.Body).Decode(&token)
 	if err != nil {
-		return fmt.Errorf("could not decode 'getToken' response: %w", err)
+		return fmt.Errorf("cielo.getToken: %v", err)
 	}
 
 	c.token = &token

@@ -3,13 +3,11 @@ package go_cielo_conecta
 import (
 	"errors"
 	"fmt"
-	"slices"
 )
 
 type SaleInterface interface {
 	GetSale() Sale
 	Authorization() (Sale, error)
-	Confirm(emvData string, issuerScriptResults ...string) (*ConfirmResponse, error)
 
 	WithCreditCard(cc *CreditCard) SaleInterface
 	WithDebitCard(dc *DebitCard) SaleInterface
@@ -79,8 +77,8 @@ func (h *SaleHandler) WithDebitCard(dc *DebitCard) SaleInterface {
 	return h
 }
 
-// Authorization validates the sale data and sends a request to the API to authorize the payment.
-// It returns the authorized sale or an error if the validation fails or if there is an issue with the API request.
+// Authorization validates the sale data and sends a requestBody to the API to authorize the payment.
+// It returns the authorized sale or an error if the validation fails or if there is an issue with the API requestBody.
 // POST /1/physicalSales/
 func (h *SaleHandler) Authorization() (Sale, error) {
 	salePayed := Sale{}
@@ -102,54 +100,6 @@ func (h *SaleHandler) Authorization() (Sale, error) {
 	h.Sale = &salePayed
 
 	return salePayed, nil
-}
-
-// Confirm confirms a payment with the provided issuer script results.
-// It validates the sale data and sends a request to the API to confirm the payment.
-// It returns the confirmation result or an error if the validation fails or if there is an issue with the API request.
-//
-// PUT /1/physicalSales/{PaymentId}/confirmation
-func (h *SaleHandler) Confirm(emvData string, issuerScriptResults ...string) (*ConfirmResponse, error) {
-	if h.Sale == nil {
-		return nil, errors.New("sale not initialized")
-	}
-
-	if h.Sale.Payment.PaymentId == "" {
-		return nil, errors.New("payment_id is required")
-	}
-
-	if h.Sale.Payment.Status != Confirmed {
-		return nil, fmt.Errorf("payment is not confirmed: status=%s", h.Sale.Payment.Status)
-	}
-
-	i := slices.IndexFunc(h.Sale.Payment.Links, func(link *Link) bool { return link.Rel == "confirm" })
-
-	var (
-		urlConfirm = h.Sale.Payment.Links[i].Href
-		method     = h.Sale.Payment.Links[i].Method
-		body       = make(map[string]string)
-	)
-
-	body["EmvData"] = emvData
-	body["IssuerScriptResults"] = "0000"
-
-	if len(issuerScriptResults) > 0 {
-		body["IssuerScriptResults"] = issuerScriptResults[0]
-	}
-
-	var result ConfirmResponse
-
-	req, err := h.client.NewRequest(method, urlConfirm, body)
-	if err != nil {
-		return &result, err
-	}
-
-	err = h.client.Send(req, &result)
-	if err != nil {
-		return &result, err
-	}
-
-	return &result, nil
 }
 
 func (h *SaleHandler) validate() error {
