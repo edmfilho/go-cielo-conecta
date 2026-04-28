@@ -19,7 +19,7 @@ type CancelHandler struct {
 
 func newCancelHandler(c *Client, s Sale, issuerScriptsResults ...string) (CancelInterface, error) {
 	if s.Payment == nil {
-		return nil, ErrPaymentIsRequired
+		return nil, ErrPaymentRequired
 	}
 
 	if s.Payment.CreditCard == nil && s.Payment.DebitCard == nil {

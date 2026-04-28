@@ -94,19 +94,19 @@ func (h *SaleHandler) validate() error {
 	var errs error
 
 	if h.Sale.MerchantOrderId == "" {
-		errs = errors.New("merchant order id is required")
+		errs = errors.Join(errs, ErrOrderIDRequired)
 	}
 
 	if h.Sale.Payment.Type == "" {
-		errs = errors.Join(errs, errors.New("payment type is required"))
+		errs = errors.Join(errs, ErrPaymentTypeRequired)
 	}
 
 	if h.Sale.Payment.SoftDescriptor == "" {
-		errs = errors.Join(errs, errors.New("soft descriptor is required"))
+		errs = errors.Join(errs, ErrSoftDescriptorRequired)
 	}
 
-	if h.Sale.Payment.CreditCard == nil {
-		errs = errors.Join(errs, errors.New("no credit card"))
+	if h.Sale.Payment.CreditCard == nil && h.Sale.Payment.DebitCard == nil {
+		errs = errors.Join(errs, ErrCardRequired)
 	}
 
 	return errs

@@ -64,7 +64,11 @@ const (
 )
 
 var (
-	ErrPaymentIsRequired = errors.New("payment information is required")
+	ErrOrderIDRequired        = errors.New("merchant_order_id is required")
+	ErrPaymentRequired        = errors.New("payment information is required")
+	ErrCardRequired           = errors.New("card information is required")
+	ErrSoftDescriptorRequired = errors.New("soft descriptor is required")
+	ErrPaymentTypeRequired    = errors.New("payment type is required")
 )
 
 var (

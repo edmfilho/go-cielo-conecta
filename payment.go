@@ -52,7 +52,7 @@ func (c *Client) CreatePayment(payment Info) SaleInterface {
 // PUT /1/physicalSales/{PaymentId}/confirmation
 func (c *Client) ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error) {
 	if authorizedSale.Payment == nil {
-		return ConfirmResponse{}, ErrPaymentIsRequired
+		return ConfirmResponse{}, ErrPaymentRequired
 	}
 
 	if authorizedSale.Payment.Status != StatusPaymentConfirmed {
