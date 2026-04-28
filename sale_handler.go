@@ -6,7 +6,6 @@ import (
 )
 
 type SaleInterface interface {
-	GetSale() Sale
 	Authorization() (Sale, error)
 
 	WithCreditCard(cc *CreditCard) SaleInterface
@@ -14,24 +13,18 @@ type SaleInterface interface {
 
 	SetInstallments(installments int) SaleInterface
 	SetInterest(interestType Interest) SaleInterface
-	SetCustomer(customer *Customer) SaleInterface
-	SetPinPadInfo(pinPad *PinPadInformation) SaleInterface
+	SetCustomer(customer Customer) SaleInterface
+	SetPinPadInfo(pinPad PinPadInformation) SaleInterface
 	SetSoftDescriptor(softDesc string) SaleInterface
 }
 
 type SaleHandler struct {
 	client *Client
-	Sale   *Sale
+	Sale   Sale
 }
 
-func newSaleHandler(client *Client, s *Sale) SaleInterface {
-	return &SaleHandler{
-		client: client,
-		Sale: &Sale{
-			MerchantOrderId: s.MerchantOrderId,
-			Payment:         s.Payment,
-		},
-	}
+func newSaleHandler(c *Client, s Sale) SaleInterface {
+	return &SaleHandler{client: c, Sale: s}
 }
 
 func (h *SaleHandler) SetSoftDescriptor(softDesc string) SaleInterface {
@@ -39,23 +32,19 @@ func (h *SaleHandler) SetSoftDescriptor(softDesc string) SaleInterface {
 	return h
 }
 
-func (h *SaleHandler) SetPinPadInfo(pinPad *PinPadInformation) SaleInterface {
-	h.Sale.Payment.PinPadInformation = pinPad
+func (h *SaleHandler) SetPinPadInfo(pinPad PinPadInformation) SaleInterface {
+	h.Sale.Payment.PinPadInformation = &pinPad
 	return h
 }
 
-func (h *SaleHandler) SetCustomer(customer *Customer) SaleInterface {
-	h.Sale.Customer = customer
+func (h *SaleHandler) SetCustomer(c Customer) SaleInterface {
+	h.Sale.Customer = &c
 	return h
 }
 
 func (h *SaleHandler) SetInterest(interestType Interest) SaleInterface {
 	h.Sale.Payment.Interest = interestType
 	return h
-}
-
-func (h *SaleHandler) GetSale() Sale {
-	return *h.Sale
 }
 
 func (h *SaleHandler) SetInstallments(installments int) SaleInterface {
@@ -97,7 +86,7 @@ func (h *SaleHandler) Authorization() (Sale, error) {
 		return salePayed, err
 	}
 
-	h.Sale = &salePayed
+	h.Sale = Sale{}
 
 	return salePayed, nil
 }

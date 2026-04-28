@@ -112,14 +112,11 @@ func (c *Client) Send(req *http.Request, v any) error {
 		return nil
 	}
 
-	if req.Method != http.MethodGet && req.Method != http.MethodDelete {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
 	if c.env.Homologation {
 		req.Header.Set("Environment", "Homologacao15")
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "go-cielo-conecta-client/1.0")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token.AccessToken))
 
