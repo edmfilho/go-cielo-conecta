@@ -11,6 +11,13 @@ import (
 // GetParam defines the type for parameters used in GetPaymentBy method to specify the search criteria (PaymentId or MerchantOrderId).
 type GetParam string
 
+type Info struct {
+	OrderID   string
+	Amount    float64
+	ProductID uint
+	Card      any
+}
+
 var (
 	PaymentID       = GetParam("PaymentId")
 	MerchantOrderID = GetParam("MerchantOrderId")
@@ -21,21 +28,23 @@ var (
 // The amount is converted to cents and rounding to the nearest integer.
 //
 // The method returns a SaleInterface that can be used to further customize the sale or execute it.
-func (c *Client) CreatePayment(orderId string, amount float64, productId uint) SaleInterface {
+func (c *Client) CreatePayment(payment Info) (SaleInterface, error) {
 	p := Payment{
-		Installments:           1,
-		Interest:               ByMerchant, // Initialized with ByMerchant, but can be changed with SetInterest().
+		Installments:           1,          // Can be changed with SetInstallments().
+		Interest:               ByMerchant, // Can be changed with SetInterest().
 		Capture:                true,
 		PaymentDateTime:        time.Now().Format("2006-01-02T15:04:05"),
-		Amount:                 uint64(math.Round(amount * 100)),
-		ProductId:              productId,
+		Amount:                 uint64(math.Round(payment.Amount * 100)),
+		ProductId:              payment.ProductID,
 		SubordinatedMerchantId: c.env.merchant.ID,
 	}
 
-	return newSaleHandler(c, &Sale{
-		MerchantOrderId: orderId,
+	s := Sale{
+		MerchantOrderId: payment.OrderID,
 		Payment:         &p,
-	})
+	}
+
+	return newSaleHandler(c, s, payment.Card)
 }
 
 // ConfirmPayment confirms a payment with the provided issuer script results.

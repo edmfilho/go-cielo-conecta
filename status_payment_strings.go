@@ -6,16 +6,11 @@ import (
 	"strings"
 )
 
-func (s *StatusPayment) String() string {
-	return [...]string{"Unknown", "Pending", "Confirmed", "Cancelled", "Reversed", "Processing", "Denied", "Unreachable", "WaitingValidation", "WaitingCapture", "RefundedDevolution", "Refunded", "Approved"}[*s]
+func (s StatusPayment) String() string {
+	return [...]string{"Unknown", "Pending", "Confirmed", "Cancelled", "Reversed", "Processing", "Denied", "Unreachable", "WaitingValidation", "WaitingCapture", "RefundedDevolution", "Refunded", "Approved"}[s]
 }
 
-func ParseStatusPayment(s string) (*StatusPayment, error) {
-	var (
-		sp  StatusPayment
-		err error
-	)
-
+func ParseStatusPayment(s string) (sp StatusPayment, err error) {
 	switch strings.ToLower(s) {
 	case "pending":
 		sp = StatusPaymentPending
@@ -46,17 +41,17 @@ func ParseStatusPayment(s string) (*StatusPayment, error) {
 		err = fmt.Errorf("invalid StatusPayment: %s", s)
 	}
 
-	return &sp, err
+	return sp, err
 }
 
-func (s *StatusPayment) MarshalJSON() ([]byte, error) {
+func (s StatusPayment) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-func (s *StatusPayment) UnmarshalJSON(data []byte) error {
+func (s StatusPayment) UnmarshalJSON(data []byte) error {
 	var asInt int
 	if err := json.Unmarshal(data, &asInt); err == nil {
-		*s = StatusPayment(asInt)
+		s = StatusPayment(asInt)
 		return nil
 	}
 
@@ -70,7 +65,7 @@ func (s *StatusPayment) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*s = *sp
+	s = sp
 
 	return nil
 }

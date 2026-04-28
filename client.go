@@ -18,7 +18,7 @@ type ClientInterface interface {
 	NewRequestWithContext(ctx context.Context, method, path string, body any) (*http.Request, error)
 	Send(req *http.Request, body any) error
 
-	CreatePayment(orderId string, amount float64, productId uint) SaleInterface
+	CreatePayment(payment Info) (SaleInterface, error)
 	GetPaymentBy(param GetParam, query string, transactionDate ...time.Time) (*Sale, error)
 	ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error)
 	ReversePayment(sale Sale, issuerScriptResults ...string) (ConfirmResponse, error)

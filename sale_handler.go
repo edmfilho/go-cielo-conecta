@@ -6,16 +6,15 @@ import (
 )
 
 type SaleInterface interface {
-	Authorization() (Sale, error)
-
-	WithCreditCard(cc *CreditCard) SaleInterface
-	WithDebitCard(dc *DebitCard) SaleInterface
+	Authorize() (Sale, error)
 
 	SetInstallments(installments int) SaleInterface
 	SetInterest(interestType Interest) SaleInterface
 	SetCustomer(customer Customer) SaleInterface
 	SetPinPadInfo(pinPad PinPadInformation) SaleInterface
 	SetSoftDescriptor(softDesc string) SaleInterface
+
+	WithCard(card any) (SaleInterface, error)
 }
 
 type SaleHandler struct {
@@ -23,8 +22,31 @@ type SaleHandler struct {
 	Sale   Sale
 }
 
-func newSaleHandler(c *Client, s Sale) SaleInterface {
-	return &SaleHandler{client: c, Sale: s}
+func newSaleHandler(c *Client, s Sale, card any) (SaleInterface, error) {
+	h := SaleHandler{client: c, Sale: s}
+	return h.WithCard(card)
+}
+
+func (h *SaleHandler) WithCard(card any) (SaleInterface, error) {
+	if card == nil {
+		return h, errors.New("card is required")
+	}
+
+	h.Sale.Payment.DebitCard = nil
+	h.Sale.Payment.CreditCard = nil
+
+	switch v := card.(type) {
+	case CreditCard:
+		h.Sale.Payment.CreditCard = &v
+		h.Sale.Payment.Type = "PhysicalCreditCard"
+	case DebitCard:
+		h.Sale.Payment.DebitCard = &v
+		h.Sale.Payment.Type = "PhysicalDebitCard"
+	default:
+		return h, errors.New("card must be of type CreditCard or DebitCard")
+	}
+
+	return h, nil
 }
 
 func (h *SaleHandler) SetSoftDescriptor(softDesc string) SaleInterface {
@@ -52,24 +74,9 @@ func (h *SaleHandler) SetInstallments(installments int) SaleInterface {
 	return h
 }
 
-func (h *SaleHandler) WithCreditCard(cc *CreditCard) SaleInterface {
-	h.Sale.Payment.CreditCard = cc
-	h.Sale.Payment.DebitCard = nil
-	h.Sale.Payment.Type = "PhysicalCreditCard"
-	return h
-}
-
-func (h *SaleHandler) WithDebitCard(dc *DebitCard) SaleInterface {
-	h.Sale.Payment.CreditCard = nil
-	h.Sale.Payment.DebitCard = dc
-	h.Sale.Payment.Type = "PhysicalDebitCard"
-	return h
-}
-
-// Authorization validates the sale data and sends a requestBody to the API to authorize the payment.
+// Authorize validates the sale data and sends a requestBody to the API to authorize the payment.
 // It returns the authorized sale or an error if the validation fails or if there is an issue with the API requestBody.
-// POST /1/physicalSales/
-func (h *SaleHandler) Authorization() (Sale, error) {
+func (h *SaleHandler) Authorize() (Sale, error) {
 	salePayed := Sale{}
 
 	if err := h.validate(); err != nil {
