@@ -14,7 +14,8 @@ type SaleInterface interface {
 	SetPinPadInfo(pinPad PinPadInformation) SaleInterface
 	SetSoftDescriptor(softDesc string) SaleInterface
 
-	WithCard(card any) (SaleInterface, error)
+	WithCreditCard(cc CreditCard) SaleInterface
+	WithDebitCard(dc DebitCard) SaleInterface
 }
 
 type SaleHandler struct {
@@ -22,31 +23,22 @@ type SaleHandler struct {
 	Sale   Sale
 }
 
-func newSaleHandler(c *Client, s Sale, card any) (SaleInterface, error) {
-	h := SaleHandler{client: c, Sale: s}
-	return h.WithCard(card)
+func newSaleHandler(c *Client, s Sale) SaleInterface {
+	return &SaleHandler{client: c, Sale: s}
 }
 
-func (h *SaleHandler) WithCard(card any) (SaleInterface, error) {
-	if card == nil {
-		return h, errors.New("card is required")
-	}
-
+func (h *SaleHandler) WithCreditCard(cc CreditCard) SaleInterface {
 	h.Sale.Payment.DebitCard = nil
+	h.Sale.Payment.CreditCard = &cc
+	h.Sale.Payment.Type = "PhysicalCreditCard"
+	return h
+}
+
+func (h *SaleHandler) WithDebitCard(dc DebitCard) SaleInterface {
 	h.Sale.Payment.CreditCard = nil
-
-	switch v := card.(type) {
-	case CreditCard:
-		h.Sale.Payment.CreditCard = &v
-		h.Sale.Payment.Type = "PhysicalCreditCard"
-	case DebitCard:
-		h.Sale.Payment.DebitCard = &v
-		h.Sale.Payment.Type = "PhysicalDebitCard"
-	default:
-		return h, errors.New("card must be of type CreditCard or DebitCard")
-	}
-
-	return h, nil
+	h.Sale.Payment.DebitCard = &dc
+	h.Sale.Payment.Type = "PhysicalDebitCard"
+	return h
 }
 
 func (h *SaleHandler) SetSoftDescriptor(softDesc string) SaleInterface {

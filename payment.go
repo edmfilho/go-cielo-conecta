@@ -15,7 +15,6 @@ type Info struct {
 	OrderID   string
 	Amount    float64
 	ProductID uint
-	Card      any
 }
 
 var (
@@ -28,7 +27,7 @@ var (
 // The amount is converted to cents and rounding to the nearest integer.
 //
 // The method returns a SaleInterface that can be used to further customize the sale or execute it.
-func (c *Client) CreatePayment(payment Info) (SaleInterface, error) {
+func (c *Client) CreatePayment(payment Info) SaleInterface {
 	p := Payment{
 		Installments:           1,          // Can be changed with SetInstallments().
 		Interest:               ByMerchant, // Can be changed with SetInterest().
@@ -44,7 +43,7 @@ func (c *Client) CreatePayment(payment Info) (SaleInterface, error) {
 		Payment:         &p,
 	}
 
-	return newSaleHandler(c, s, payment.Card)
+	return newSaleHandler(c, s)
 }
 
 // ConfirmPayment confirms a payment with the provided issuer script results.
