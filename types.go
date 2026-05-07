@@ -74,7 +74,7 @@ type (
 	}
 
 	Payment struct {
-		Installments              int                   `json:",omitempty"`
+		Installments              int                   `json:",omitempty"` // Installments Quantidade de parcelas: varia de 2 a 99 para transação de financiamento.
 		Type                      string                `json:",omitempty"`
 		Interest                  Interest              `json:",omitempty"`
 		Capture                   bool                  `json:",omitempty"` // Capture identifica que a autorização deve ser com captura automática. A autorização sem captura automática é conhecida também como pré-autorização.

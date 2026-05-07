@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func ParseConfirmationStatus(s string) (*ConfirmationStatus, error) {
+func ParseConfirmationStatus(s string) (ConfirmationStatus, error) {
 	var c ConfirmationStatus
 
 	switch strings.ToLower(s) {
@@ -17,14 +17,14 @@ func ParseConfirmationStatus(s string) (*ConfirmationStatus, error) {
 	case "desfeito":
 		c = Desfeito
 	default:
-		return nil, fmt.Errorf("invalid ConfirmationStatus: %s", s)
+		return 0, fmt.Errorf("invalid ConfirmationStatus: %s", s)
 	}
 
-	return &c, nil
+	return c, nil
 }
 
-func (c *ConfirmationStatus) String() string {
-	return [...]string{"Pendente", "Confirmado", "Desfeito"}[*c]
+func (c ConfirmationStatus) String() string {
+	return [...]string{"Pendente", "Confirmado", "Desfeito"}[c]
 }
 
 func (c *ConfirmationStatus) MarshalJSON() ([]byte, error) {
@@ -32,7 +32,7 @@ func (c *ConfirmationStatus) MarshalJSON() ([]byte, error) {
 }
 
 func (c *ConfirmationStatus) UnmarshalJSON(data []byte) error {
-	var asInt int
+	var asInt uint
 	if err := json.Unmarshal(data, &asInt); err == nil {
 		*c = ConfirmationStatus(asInt)
 		return nil
@@ -48,7 +48,7 @@ func (c *ConfirmationStatus) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*c = *cs
+	*c = cs
 
 	return nil
 }

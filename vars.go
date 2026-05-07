@@ -42,7 +42,7 @@ const (
 )
 
 const (
-	StatusPaymentUnknown StatusPayment = iota
+	StatusPaymentNotFinished StatusPayment = iota
 	StatusPaymentPending
 	StatusPaymentConfirmed
 	StatusPaymentCancelled
