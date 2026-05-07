@@ -46,47 +46,6 @@ func (c *Client) CreatePayment(payment Info) SaleInterface {
 	return newSaleHandler(c, s)
 }
 
-// ConfirmPayment confirms a payment with the provided issuer script results.
-// Returns the confirmation result or an error if the validation fails or if there is an issue with the API requestBody.
-//
-// PUT /1/physicalSales/{PaymentId}/confirmation
-func (c *Client) ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error) {
-	if authorizedSale.Payment == nil {
-		return ConfirmResponse{}, ErrPaymentRequired
-	}
-
-	if authorizedSale.Payment.Status != StatusPaymentConfirmed {
-		return ConfirmResponse{}, fmt.Errorf("payment information is not confirmed: status=%s, message=%s %s", authorizedSale.Payment.Status, authorizedSale.Payment.ExtendedMessage, authorizedSale.Payment.ReturnMessage)
-	}
-
-	link := authorizedSale.Payment.getLink("confirm")
-	if link == nil {
-		return ConfirmResponse{}, fmt.Errorf("could not confirm this payment, status=%s, message=%s %s", authorizedSale.Payment.Status, authorizedSale.Payment.ExtendedMessage, authorizedSale.Payment.ReturnMessage)
-	}
-
-	var body = map[string]string{}
-
-	body["EmvData"] = authorizedSale.Payment.getEmvData()
-	body["IssuerScriptResults"] = "0000"
-	if len(issuerScriptResults) > 0 {
-		body["IssuerScriptResults"] = issuerScriptResults[0]
-	}
-
-	req, err := c.NewRequest(link.Method, link.Href, body)
-	if err != nil {
-		return ConfirmResponse{}, err
-	}
-
-	var resp ConfirmResponse
-
-	err = c.Send(req, &resp)
-	if err != nil {
-		return ConfirmResponse{}, err
-	}
-
-	return resp, nil
-}
-
 // GetPaymentBy retrieves a payment based on the specified parameter (PaymentId or MerchantOrderId) and query value.
 // It constructs the appropriate endpoint URL based on the parameter and query, and optionally includes a transaction date.
 // The method sends a GET requestBody to the API and returns the retrieved Sale object or an error if the requestBody fails.

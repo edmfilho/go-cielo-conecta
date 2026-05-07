@@ -20,7 +20,6 @@ type ClientInterface interface {
 
 	CreatePayment(payment Info) SaleInterface
 	GetPaymentBy(param GetParam, query string, transactionDate ...time.Time) (*Sale, error)
-	ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error)
 	ReversePayment(sale Sale, issuerScriptResults ...string) (ConfirmResponse, error)
 	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
 
