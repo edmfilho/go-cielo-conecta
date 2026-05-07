@@ -258,7 +258,7 @@ func (p Payment) getEmvData() string {
 	}
 
 	if p.DebitCard != nil {
-		return p.CreditCard.EmvData
+		return p.DebitCard.EmvData
 	}
 
 	return ""
