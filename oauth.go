@@ -101,7 +101,7 @@ func (c *Client) handleTokenRefresh(t *time.Ticker) {
 		nextIn = 10 * time.Second
 	}
 
-	c.writeLog(fmt.Sprintf("Token refreshed successfully, next refresh in %s\n", nextIn.String()))
+	c.LogInfo(fmt.Sprintf("Token refreshed successfully, next refresh in %s\n", nextIn.String()))
 
 	t.Reset(nextIn)
 }

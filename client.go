@@ -56,7 +56,7 @@ func NewClient(env Environment, log ...*slog.Logger) (ClientInterface, error) {
 		return nil, err
 	}
 
-	c.writeLog(fmt.Sprintf("Successfully got access_token, expires in %s", (c.token.ExpiresIn * time.Second).String()))
+	c.LogInfo(fmt.Sprintf("Successfully got access_token, expires in %s", (c.token.ExpiresIn * time.Second).String()))
 
 	c.wg.Add(1)
 	go func() {

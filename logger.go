@@ -1,33 +1,28 @@
 package go_cielo_conecta
 
 import (
-	"fmt"
+	"bytes"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
-type requestLog struct {
-	Request  string `json:"requestBody"`
-	Response string `json:"response,omitempty"`
-
+type logData struct {
+	URL    string `json:"url"`
+	Method string `json:"method"`
 	Status string `json:"status"`
-	Code   int    `json:"-"`
+	Body   string `json:"body,omitempty"`
 }
 
-func (req requestLog) LogValue() slog.Value {
-	if req.Response == "" {
-		return slog.GroupValue(
-			slog.String("requestBody", req.Request),
-			slog.String("status", req.Status),
-		)
-	}
-
+func (req logData) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.String("requestBody", req.Request),
-		slog.String("response", req.Response),
+		slog.String("url", req.URL),
+		slog.String("method", req.Method),
 		slog.String("status", req.Status),
+		slog.String("body", req.Body),
 	)
 }
 
@@ -36,18 +31,41 @@ func (c *Client) logger(r *http.Request, resp *http.Response) {
 		return
 	}
 
-	logger := requestLog{
-		Request: fmt.Sprintf("%s %s", r.Method, r.URL.String()),
-		Status:  resp.Status,
-		Code:    resp.StatusCode,
+	logger := logData{
+		URL:    r.URL.String(),
+		Method: r.Method,
+		Status: resp.Status,
 	}
 
-	if logger.Code < 200 || logger.Code > 299 {
-		c.log.Error("Error executing the requestBody", "result", logger)
+	if !strings.Contains(logger.URL, "parametersdownloadsandbox") {
+		bodyBytes, err := readBody(resp)
+		if err != nil {
+			return
+		}
+
+		logger.Body = string(bodyBytes)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		c.log.Error("error executing the request", "request", logger)
 		return
 	}
 
-	c.log.Info("Request performed successfully.", "result", logger)
+	c.log.Info("request was successful", "request", logger)
+}
+
+func readBody(resp *http.Response) ([]byte, error) {
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	copiedBody := bodyBytes
+
+	// Restore the original body for further processing
+	resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	return copiedBody, nil
 }
 
 func (c *Client) SetLogger(slog *slog.Logger) {
@@ -67,10 +85,18 @@ func (c *Client) DefaultLogger() {
 	c.log = l.With("source", "cielo-conecta-client")
 }
 
-func (c *Client) writeLog(message string) {
+func (c *Client) LogInfo(msg string, args ...any) {
 	if c.log == nil {
 		return
 	}
 
-	c.log.Info(message)
+	c.log.Info(msg, args...)
+}
+
+func (c *Client) LogError(msg string, args ...any) {
+	if c.log == nil {
+		return
+	}
+
+	c.log.Error(msg, args...)
 }

@@ -3,53 +3,53 @@ package go_cielo_conecta
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
-func (e *EncryptionType) String() string {
-	return [...]string{"DukptDes", "MasterKey", "Dukpt3Des", "Dukpt3DesCBC"}[*e-1]
+func (e EncryptionType) String() string {
+	return [...]string{"DukptDes", "MasterKey", "Dukpt3Des", "Dukpt3DesCBC"}[e-1]
 }
 
-func ParseEncryptionType(s string) (*EncryptionType, error) {
+func ParseEncryptionType(s string) (EncryptionType, error) {
 	var e EncryptionType
 
-	switch s {
-	case "DukptDes":
+	switch strings.ToLower(s) {
+	case "dukptdes":
 		e = DukptDes
-	case "MasterKey":
+	case "masterkey":
 		e = MasterKey
-	case "Dukpt3Des":
+	case "dukpt3des":
 		e = Dukpt3Des
-	case "Dukpt3DesCBC":
+	case "dukpt3descbc":
 		e = Dukpt3DesCBC
 	default:
-		return nil, fmt.Errorf("invalid EncryptionType: %s", s)
+		return 0, fmt.Errorf("invalid encryption_type: %s", s)
 	}
 
-	return &e, nil
+	return e, nil
 }
 
-func (e *EncryptionType) MarshalJSON() ([]byte, error) {
+func (e EncryptionType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.String())
 }
 
-func (e *EncryptionType) UnmarshalJSON(data []byte) error {
+func (e EncryptionType) UnmarshalJSON(data []byte) error {
 	var asInt int
 	if err := json.Unmarshal(data, &asInt); err == nil {
-		*e = EncryptionType(asInt)
+		e = EncryptionType(asInt)
 		return nil
 	}
 
 	var asString string
-	if err := json.Unmarshal(data, &asString); err != nil {
-		return err
-	}
-
-	et, err := ParseEncryptionType(asString)
+	err := json.Unmarshal(data, &asString)
 	if err != nil {
 		return err
 	}
 
-	*e = *et
+	e, err = ParseEncryptionType(asString)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
