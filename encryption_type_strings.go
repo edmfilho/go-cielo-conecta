@@ -29,14 +29,14 @@ func ParseEncryptionType(s string) (EncryptionType, error) {
 	return e, nil
 }
 
-func (e EncryptionType) MarshalJSON() ([]byte, error) {
+func (e *EncryptionType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.String())
 }
 
-func (e EncryptionType) UnmarshalJSON(data []byte) error {
-	var asInt int
+func (e *EncryptionType) UnmarshalJSON(data []byte) error {
+	var asInt uint
 	if err := json.Unmarshal(data, &asInt); err == nil {
-		e = EncryptionType(asInt)
+		*e = EncryptionType(asInt)
 		return nil
 	}
 
@@ -46,10 +46,12 @@ func (e EncryptionType) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	e, err = ParseEncryptionType(asString)
+	value, err := ParseEncryptionType(asString)
 	if err != nil {
 		return err
 	}
+
+	*e = value
 
 	return nil
 }
