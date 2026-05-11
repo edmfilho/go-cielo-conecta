@@ -82,16 +82,3 @@ func (c *Client) GetPaymentBy(param GetParam, query string, transactionDate ...t
 
 	return sale, nil
 }
-
-func (c *Client) ReversePayment(s Sale, issuerScriptsResults ...string) (ConfirmResponse, error) {
-	cancel, err := newCancelHandler(c, s, issuerScriptsResults...)
-	if err != nil {
-		return ConfirmResponse{}, err
-	}
-
-	if s.Payment.PaymentId != "" {
-		return cancel.ReverseWithPaymentID()
-	}
-
-	return cancel.ReverseWithOrderID()
-}

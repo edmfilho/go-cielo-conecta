@@ -97,12 +97,12 @@ type (
 		PaymentId                 string                `json:",omitempty"`
 		Currency                  string                `json:",omitempty"`
 		Country                   string                `json:",omitempty"`
-		Links                     []*Link               `json:",omitempty"`
+		Links                     []Link                `json:",omitempty"`
 		ServiceTaxAmount          uint64                `json:",omitempty"`
 		PinPadInformation         *PinPadInformation    `json:",omitempty"`
 		PrintMessage              interface{}           `json:",omitempty"`
 		ReceiptInformation        []*ReceiptInformation `json:",omitempty"`
-		Receipt                   map[string]any        `json:",omitempty"`
+		Receipt                   map[string]string     `json:",omitempty"`
 		AuthorizationCode         string                `json:",omitempty"`
 		ProofOfSale               string                `json:",omitempty"`
 		InitializationVersion     int64                 `json:",omitempty"`
@@ -247,18 +247,18 @@ func (p Payment) LogValue() slog.Value {
 	)
 }
 
-func (p Payment) getLink(rel string) *Link {
+func (p Payment) getLink(rel string) (Link, bool) {
 	if len(p.Links) == 0 {
-		return nil
+		return Link{}, false
 	}
 
 	for _, l := range p.Links {
 		if l.Rel == rel {
-			return l
+			return l, true
 		}
 	}
 
-	return nil
+	return Link{}, false
 }
 
 func (p Payment) getEmvData() string {
