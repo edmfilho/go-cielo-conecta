@@ -82,10 +82,10 @@ type (
 		CreditCard                *CreditCard           `json:",omitempty"`
 		DebitCard                 *DebitCard            `json:",omitempty"`
 		PaymentDateTime           string                `json:",omitempty"`
-		Amount                    uint64                `json:",omitempty"`
+		Amount                    uint32                `json:",omitempty"`
 		ProductId                 uint                  `json:",omitempty"`
 		ReceivedDate              string                `json:",omitempty"`
-		CapturedAmount            uint64                `json:",omitempty"`
+		CapturedAmount            uint32                `json:",omitempty"`
 		CapturedDate              string                `json:",omitempty"`
 		Provider                  string                `json:",omitempty"`
 		Status                    StatusPayment         `json:",omitempty"`
@@ -236,6 +236,15 @@ func (er MultiError) Error() string {
 	}
 
 	return strings.Join(msgs, "; ")
+}
+
+func (p Payment) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("payment_id", p.PaymentId),
+		slog.String("status", p.Status.String()),
+		slog.String("message", p.ExtendedMessage),
+		slog.String("return_message", p.ReturnMessage),
+	)
 }
 
 func (p Payment) getLink(rel string) *Link {

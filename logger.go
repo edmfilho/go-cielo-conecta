@@ -6,23 +6,25 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
-type logData struct {
-	URL    string `json:"url"`
-	Method string `json:"method"`
-	Status string `json:"status"`
-	Body   string `json:"body,omitempty"`
+const MaxLogSize = 1024 * 100 // 102KB
+
+type LogInfo struct {
+	URL        string `json:"url"`
+	Method     string `json:"method"`
+	Status     string `json:"status"`
+	StatusCode int    `json:"status_code"`
+	Body       []byte `json:"body,omitempty"`
 }
 
-func (req logData) LogValue() slog.Value {
+func (l LogInfo) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.String("url", req.URL),
-		slog.String("method", req.Method),
-		slog.String("status", req.Status),
-		slog.String("body", req.Body),
+		slog.String("method", l.Method),
+		slog.String("status", l.Status),
+		slog.String("url", l.URL),
+		slog.String("body", string(l.Body)),
 	)
 }
 
@@ -31,41 +33,37 @@ func (c *Client) logger(r *http.Request, resp *http.Response) {
 		return
 	}
 
-	logger := logData{
-		URL:    r.URL.String(),
-		Method: r.Method,
-		Status: resp.Status,
-	}
+	l := readBody(r, resp)
 
-	if !strings.Contains(logger.URL, "parametersdownloadsandbox") {
-		bodyBytes, err := readBody(resp)
-		if err != nil {
-			return
-		}
-
-		logger.Body = string(bodyBytes)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		c.log.Error("error executing the request", "request", logger)
+	if l.StatusCode < 200 || l.StatusCode > 299 {
+		c.log.Error("error executing the request", "request", l)
 		return
 	}
 
-	c.log.Info("request was successful", "request", logger)
+	c.log.Info("request was successful", "request", l)
 }
 
-func readBody(resp *http.Response) ([]byte, error) {
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+func readBody(r *http.Request, resp *http.Response) LogInfo {
+	logInfo := LogInfo{
+		URL:        r.URL.String(),
+		Method:     r.Method,
+		Status:     resp.Status,
+		StatusCode: resp.StatusCode,
+		Body:       nil,
 	}
 
-	copiedBody := bodyBytes
+	content, _ := io.ReadAll(resp.Body)
 
-	// Restore the original body for further processing
-	resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	if len(content) > MaxLogSize {
+		// Restore the original body for further processing
+		resp.Body = io.NopCloser(bytes.NewBuffer(content))
+		return logInfo
+	}
 
-	return copiedBody, nil
+	resp.Body = io.NopCloser(bytes.NewBuffer(content))
+
+	logInfo.Body = content
+	return logInfo
 }
 
 func (c *Client) SetLogger(slog *slog.Logger) {

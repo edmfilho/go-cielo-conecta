@@ -3,7 +3,6 @@ package go_cielo_conecta
 import (
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"time"
 )
@@ -13,7 +12,7 @@ type GetParam string
 
 type Info struct {
 	OrderID   string
-	Amount    float64
+	Amount    uint32 // Amount in BRL cents. e.g., for R$ 10.50, Amount should be 1050.
 	ProductID uint
 }
 
@@ -22,7 +21,7 @@ var (
 	MerchantOrderID = GetParam("MerchantOrderId")
 )
 
-// CreatePayment initializes a new payment with the provided order ID, amount, and product ID.
+// CreatePayment initializes a new payment with the provided order ID, amount (in cents), and product ID.
 // It sets default values for installments, interest, capture, and payment date/time.
 // The amount is converted to cents and rounding to the nearest integer.
 //
@@ -33,7 +32,7 @@ func (c *Client) CreatePayment(payment Info) SaleInterface {
 		Interest:               ByMerchant, // Can be changed with SetInterest().
 		Capture:                true,
 		PaymentDateTime:        time.Now().Format("2006-01-02T15:04:05"),
-		Amount:                 uint64(math.Round(payment.Amount * 100)),
+		Amount:                 payment.Amount,
 		ProductId:              payment.ProductID,
 		SubordinatedMerchantId: c.env.merchant.ID,
 	}

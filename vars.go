@@ -64,6 +64,7 @@ const (
 )
 
 var (
+	ErrSendingRequest         = errors.New("error sending request")
 	ErrOrderIDRequired        = errors.New("merchant_order_id is required")
 	ErrPaymentRequired        = errors.New("payment information is required")
 	ErrCardRequired           = errors.New("card information is required")
@@ -72,14 +73,14 @@ var (
 )
 
 var (
-	SandboxEnvironment = Environment{
+	SandBoxEnv = Environment{
 		OAuthURL:    "https://authsandbox.cieloecommerce.cielo.com.br/oauth2/token",
 		ParamsURL:   "https://parametersdownloadsandbox.cieloecommerce.cielo.com.br/api/v0.1/initialization/{SubordinatedMerchantId}/{TerminalId}",
 		APIUrl:      "https://apisandbox.cieloecommerce.cielo.com.br",
 		APIQueryUrl: "https://apiquerysandbox.cieloecommerce.cielo.com.br",
 	}
 
-	HomologationEnvironment = Environment{
+	HmlEnv = Environment{
 		OAuthURL:     "https://authsandbox.cieloecommerce.cielo.com.br/oauth2/token",
 		ParamsURL:    "https://parametersdownloadsandbox.cieloecommerce.cielo.com.br/api/v0.1/initialization/{SubordinatedMerchantId}/{TerminalId}",
 		APIUrl:       "https://apisandbox.cieloecommerce.cielo.com.br",
@@ -87,7 +88,7 @@ var (
 		Homologation: true,
 	}
 
-	ProductionEnvironment = Environment{
+	ProdEnv = Environment{
 		OAuthURL:    "https://auth.cieloecommerce.cielo.com.br/oauth2/token",
 		ParamsURL:   "https://parametersdownload.cieloecommerce.cielo.com.br/api/v0.1/initialization/{SubordinatedMerchantId}/{TerminalId}",
 		APIUrl:      "https://api.cieloecommerce.cielo.com.br",

@@ -3,7 +3,6 @@ package go_cielo_conecta
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 )
 
 type SaleInterface interface {
@@ -100,26 +99,13 @@ func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ..
 	}
 
 	if authorizedSale.Payment.Status != StatusPaymentConfirmed {
-		h.client.LogError(fmt.Sprintf("[%s] payment status is not confirmed", authorizedSale.Payment.PaymentId),
-			slog.Group("payment",
-				slog.String("status", authorizedSale.Payment.Status.String()),
-				slog.String("message", authorizedSale.Payment.ExtendedMessage),
-				slog.String("return_message", authorizedSale.Payment.ReturnMessage),
-			),
-		)
+		h.client.LogError("payment status is not confirmed", authorizedSale.Payment)
 		return ConfirmResponse{}, fmt.Errorf("payment status is not confirmed: status=%s", authorizedSale.Payment.Status)
 	}
 
 	link := authorizedSale.Payment.getLink("confirm")
 	if link == nil {
-		h.client.LogError(fmt.Sprintf("[%s] could not confirm this payment", authorizedSale.Payment.PaymentId),
-			slog.Group("payment",
-				slog.String("status", authorizedSale.Payment.Status.String()),
-				slog.String("message", authorizedSale.Payment.ExtendedMessage),
-				slog.String("return_message", authorizedSale.Payment.ReturnMessage),
-			),
-		)
-
+		h.client.LogError("could not confirm this payment", authorizedSale.Payment)
 		return ConfirmResponse{}, fmt.Errorf("could not confirm this payment, status=%s", authorizedSale.Payment.Status)
 	}
 
@@ -144,7 +130,6 @@ func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ..
 	}
 
 	return resp, nil
-
 }
 
 func (h *SaleHandler) validate() error {

@@ -129,14 +129,7 @@ func (c *Client) Send(req *http.Request, v any) error {
 	c.logger(req, resp)
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		var errResp = []ErrorResponse{{Response: resp}}
-
-		err = json.NewDecoder(resp.Body).Decode(&errResp)
-		if err != nil {
-			return fmt.Errorf("unable to decode JSON response: code=%d error=%w", resp.StatusCode, err)
-		}
-
-		return errResp[0]
+		return ErrSendingRequest
 	}
 
 	return json.NewDecoder(resp.Body).Decode(v)
