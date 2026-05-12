@@ -195,7 +195,7 @@ type (
 
 	ConfirmResponse struct {
 		ConfirmationStatus ConfirmationStatus `json:",omitempty"`
-		Status             uint16             `json:",omitempty"`
+		Status             TransactionStatus  `json:",omitempty"`
 		ReasonCode         uint16             `json:",omitempty"`
 		ReturnCode         string             `json:",omitempty"`
 		ReturnMessage      string             `json:",omitempty"`
@@ -217,6 +217,7 @@ type (
 	EncryptionType     uint
 	StatusPayment      uint
 	ConfirmationStatus uint
+	TransactionStatus  uint
 )
 
 func (e Environment) WithMerchant(m Merchant) Environment {

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const MaxLogSize = 1024 * 100 // 102KB
+const maxLogSize = 1024 * 100 // 102KB
 
 type LogInfo struct {
 	URL        string `json:"url"`
@@ -54,7 +54,7 @@ func readBody(r *http.Request, resp *http.Response) LogInfo {
 
 	content, _ := io.ReadAll(resp.Body)
 
-	if len(content) > MaxLogSize {
+	if len(content) > maxLogSize {
 		// Restore the original body for further processing
 		resp.Body = io.NopCloser(bytes.NewBuffer(content))
 		return logInfo

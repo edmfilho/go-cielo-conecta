@@ -58,13 +58,23 @@ const (
 )
 
 const (
-	Pendente ConfirmationStatus = iota
-	Confirmado
-	Desfeito
+	ConfirmationStatusPending ConfirmationStatus = iota
+	ConfirmationStatusConfirmed
+	ConfirmationStatusUndone
+)
+
+const (
+	TransactionStatusNotFinished TransactionStatus = iota
+	TransactionStatusAuthorized
+	TransactionStatusPaid
+	TransactionStatusDenied
+	TransactionStatusCanceled = iota + 6
+	TransactionStatusAborted  = iota + 8
 )
 
 var (
 	ErrSendingRequest         = errors.New("error sending request")
+	ErrPaymentIsNotConfirmed  = errors.New("payment_status is not confirmed")
 	ErrOrderIDRequired        = errors.New("merchant_order_id is required")
 	ErrPaymentRequired        = errors.New("payment information is required")
 	ErrCardRequired           = errors.New("card information is required")

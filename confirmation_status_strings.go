@@ -10,12 +10,12 @@ func ParseConfirmationStatus(s string) (ConfirmationStatus, error) {
 	var c ConfirmationStatus
 
 	switch strings.ToLower(s) {
-	case "pendente":
-		c = Pendente
-	case "confirmado":
-		c = Confirmado
-	case "desfeito":
-		c = Desfeito
+	case "pending":
+		c = ConfirmationStatusPending
+	case "confirmed":
+		c = ConfirmationStatusConfirmed
+	case "undone":
+		c = ConfirmationStatusUndone
 	default:
 		return 0, fmt.Errorf("invalid ConfirmationStatus: %s", s)
 	}
@@ -24,7 +24,7 @@ func ParseConfirmationStatus(s string) (ConfirmationStatus, error) {
 }
 
 func (c ConfirmationStatus) String() string {
-	return [...]string{"Pendente", "Confirmado", "Desfeito"}[c]
+	return [...]string{"Pending", "Confirmed", "Undone"}[c]
 }
 
 func (c *ConfirmationStatus) MarshalJSON() ([]byte, error) {

@@ -7,14 +7,16 @@ import (
 
 type SaleInterface interface {
 	Authorize() (Sale, error)
-	Reverse(issuerScriptResults ...string) (ConfirmResponse, error)
 	ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error)
+	Reverse(confirmedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error)
 
 	SetInstallments(installments int) SaleInterface
 	SetInterest(interestType Interest) SaleInterface
 	SetCustomer(customer Customer) SaleInterface
 	SetPinPadInfo(pinPad PinPadInformation) SaleInterface
 	SetSoftDescriptor(softDesc string) SaleInterface
+
+	Get() Sale
 
 	WithCreditCard(cc CreditCard) SaleInterface
 	WithDebitCard(dc DebitCard) SaleInterface
@@ -23,6 +25,10 @@ type SaleInterface interface {
 type SaleHandler struct {
 	client *Client
 	Sale   Sale
+}
+
+func (h *SaleHandler) Get() Sale {
+	return h.Sale
 }
 
 func newSaleHandler(c *Client, s Sale) SaleInterface {
@@ -69,7 +75,7 @@ func (h *SaleHandler) SetInstallments(installments int) SaleInterface {
 }
 
 // Authorize validates the sale data and sends a requestBody to the API to authorize the payment.
-// It returns the authorized sale or an error if the validation fails or if there is an issue with the API requestBody.
+// Returns the authorized sale with payment details or an error if the validation fails or if there is an issue with the API requestBody.
 func (h *SaleHandler) Authorize() (Sale, error) {
 	salePayed := Sale{}
 
@@ -87,6 +93,10 @@ func (h *SaleHandler) Authorize() (Sale, error) {
 		return salePayed, err
 	}
 
+	if salePayed.Payment != nil && salePayed.Payment.Status != StatusPaymentConfirmed {
+		return salePayed, ErrPaymentIsNotConfirmed
+	}
+
 	return salePayed, nil
 }
 
@@ -99,12 +109,9 @@ func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ..
 		return ConfirmResponse{}, ErrPaymentRequired
 	}
 
-	if authorizedSale.Payment.Status != StatusPaymentConfirmed {
-		h.client.LogError("payment status is not confirmed", authorizedSale.Payment)
-		return ConfirmResponse{}, fmt.Errorf("payment status is not confirmed: status=%s", authorizedSale.Payment.Status)
-	}
+	var response ConfirmResponse
 
-	link := Link{Method: "PUT", Href: fmt.Sprintf("%s/1/physicalSales/%s/confirmation", h.client.env.APIUrl, authorizedSale.Payment.PaymentId)}
+	href := fmt.Sprintf("%s/1/physicalSales/%s/confirmation", h.client.env.APIUrl, authorizedSale.Payment.PaymentId)
 
 	body := map[string]string{
 		"EmvData":             h.Sale.Payment.getEmvData(),
@@ -115,19 +122,17 @@ func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ..
 		body["IssuerScriptResults"] = issuerScriptResults[0]
 	}
 
-	req, err := h.client.NewRequest(link.Method, link.Href, body)
+	req, err := h.client.NewRequest("PUT", href, body)
 	if err != nil {
-		return ConfirmResponse{}, err
+		return response, err
 	}
 
-	var resp ConfirmResponse
-
-	err = h.client.Send(req, &resp)
+	err = h.client.Send(req, &response)
 	if err != nil {
-		return ConfirmResponse{}, err
+		return response, err
 	}
 
-	return resp, nil
+	return response, nil
 }
 
 // ReversePayment must be called when payment returns success. It initiates the reversal process for a given sale, allowing for the cancellation of a previously authorized payment.
@@ -135,17 +140,14 @@ func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ..
 //
 // Depending on whether the Sale object contains a PaymentId, the method will choose the appropriate reversal endpoint (either by PaymentId or by OrderId) and send a DELETE requestBody to the API.
 // It returns a ConfirmResponse indicating the result of the reversal operation or an error if the requestBody fails.
-func (h *SaleHandler) Reverse(issuerScriptResults ...string) (ConfirmResponse, error) {
-	cancel, err := newCancelHandler(h.client, h.Sale, issuerScriptResults...)
-	if err != nil {
-		return ConfirmResponse{}, err
-	}
+func (h *SaleHandler) Reverse(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error) {
+	emvData := h.Sale.Payment.getEmvData()
 
-	if h.Sale.Payment.Status == StatusPaymentConfirmed {
-		return cancel.ReverseWithPaymentID()
-	}
+	cancel := newCancelHandler(h.client, emvData, issuerScriptResults...)
 
-	return cancel.ReverseWithOrderID()
+	h.client.LogInfo("trying to reverse payment", "payment", authorizedSale.Payment)
+
+	return cancel.ReverseWithPaymentID(authorizedSale.Payment.PaymentId)
 }
 
 func (h *SaleHandler) validate() error {
