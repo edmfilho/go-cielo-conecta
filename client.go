@@ -23,6 +23,7 @@ type ClientInterface interface {
 	GetPaymentByID(ctx context.Context, paymentId string) (Sale, error)
 	GetPaymentByOrderID(ctx context.Context, orderID string, date ...time.Time) (Sale, error)
 	ReversePayment(ctx context.Context, sale Sale) (ConfirmResponse, error)
+	CancelPayment(ctx context.Context, sale Sale) (ConfirmResponse, error)
 
 	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
 
@@ -126,10 +127,9 @@ func (c *Client) Send(req *http.Request, v any) error {
 	}
 
 	defer resp.Body.Close()
+	c.logger(req, resp)
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		c.logger(req, resp)
-
 		var errResponse MultiError
 		err = json.NewDecoder(resp.Body).Decode(&errResponse)
 		if err != nil {

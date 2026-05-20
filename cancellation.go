@@ -4,23 +4,23 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type CancelInterface interface {
-	TryReversePayment() (ConfirmResponse, error)
+	TryReversePayment(ctx context.Context) (ConfirmResponse, error)
+	CancelPayment(ctx context.Context, merchantVoidId string) (VoidResponse, error)
+	ConfirmCancel(ctx context.Context, voidID string) (ConfirmResponse, error)
 }
 
 type CancelHandler struct {
 	client       *Client
-	ctx          context.Context
-	data         ReverseRequest
+	info         CancelRequest
 	hasPaymentID bool
 }
 
-func newCancelHandler(ctx context.Context, c *Client, request ReverseRequest) CancelInterface {
-	var (
-		hasPaymentID = false
-	)
+func newCancelHandler(c *Client, request CancelRequest) CancelInterface {
+	hasPaymentID := false
 
 	if request.PaymentID != "" {
 		hasPaymentID = true
@@ -28,29 +28,72 @@ func newCancelHandler(ctx context.Context, c *Client, request ReverseRequest) Ca
 
 	return &CancelHandler{
 		client:       c,
-		ctx:          ctx,
-		data:         request,
+		info:         request,
 		hasPaymentID: hasPaymentID,
 	}
 }
 
-func (h *CancelHandler) TryReversePayment() (ConfirmResponse, error) {
+func (h *CancelHandler) CancelPayment(ctx context.Context, merchantVoidId string) (VoidResponse, error) {
+	var voidResponse = VoidResponse{}
+
+	body := Void{
+		MerchantVoidId:   merchantVoidId,
+		MerchantVoidDate: time.Now().Format("2006-01-02T15:04:05"),
+		Card:             h.info.CardVoid,
+	}
+
+	req, err := h.client.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/1/physicalSales/%s/voids/", h.client.env.APIUrl, h.info.PaymentID),
+		body,
+	)
+	if err != nil {
+		return voidResponse, err
+	}
+
+	err = h.client.Send(req, &voidResponse)
+	if err != nil {
+		return voidResponse, err
+	}
+
+	return voidResponse, nil
+}
+
+func (h *CancelHandler) ConfirmCancel(ctx context.Context, voidID string) (ConfirmResponse, error) {
+	var confirmResponse = ConfirmResponse{}
+
+	req, err := h.client.NewRequestWithContext(ctx, http.MethodPut,
+		fmt.Sprintf("%s/1/physicalSales/%s/voids/%s/confirmation", h.client.env.APIUrl, h.info.PaymentID, voidID),
+		nil,
+	)
+	if err != nil {
+		return confirmResponse, err
+	}
+
+	err = h.client.Send(req, &confirmResponse)
+	if err != nil {
+		return confirmResponse, err
+	}
+
+	return confirmResponse, nil
+}
+
+func (h *CancelHandler) TryReversePayment(ctx context.Context) (ConfirmResponse, error) {
 	var (
 		result ConfirmResponse
 		req    *http.Request
 		err    error
 	)
 
-	body := map[string]string{"EmvData": h.data.EmvData}
+	body := map[string]string{"EmvData": h.info.EmvData}
 
 	if h.hasPaymentID {
-		req, err = h.client.NewRequestWithContext(h.ctx, http.MethodDelete,
-			fmt.Sprintf("%s/1/physicalSales/%s", h.client.env.APIUrl, h.data.PaymentID),
+		req, err = h.client.NewRequestWithContext(ctx, http.MethodDelete,
+			fmt.Sprintf("%s/1/physicalSales/%s", h.client.env.APIUrl, h.info.PaymentID),
 			body,
 		)
 	} else {
-		req, err = h.client.NewRequestWithContext(h.ctx, http.MethodDelete,
-			fmt.Sprintf("%s/1/physicalSales/MerchantOrderId/%s", h.client.env.APIUrl, h.data.MerchantOrderId),
+		req, err = h.client.NewRequestWithContext(ctx, http.MethodDelete,
+			fmt.Sprintf("%s/1/physicalSales/MerchantOrderId/%s", h.client.env.APIUrl, h.info.MerchantOrderId),
 			body,
 		)
 	}

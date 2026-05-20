@@ -72,6 +72,7 @@ type (
 	}
 
 	Payment struct {
+		ID                        string                `json:"PaymentId,omitempty"`
 		Installments              int                   `json:",omitempty"` // Installments Quantidade de parcelas: varia de 2 a 99 para transação de financiamento.
 		Type                      string                `json:",omitempty"`
 		Interest                  Interest              `json:",omitempty"`
@@ -92,7 +93,6 @@ type (
 		ReturnMessage             string                `json:",omitempty"`
 		ExtendedMessage           string                `json:",omitempty"`
 		ReturnCode                string                `json:",omitempty"`
-		PaymentId                 string                `json:",omitempty"`
 		Currency                  string                `json:",omitempty"`
 		Country                   string                `json:",omitempty"`
 		Links                     []Link                `json:",omitempty"`
@@ -177,11 +177,11 @@ type (
 	}
 
 	EncryptedCardData struct {
-		EncryptionType       EncryptionType `json:",omitempty"`
-		TrackOneDataKSN      string         `json:",omitempty"`
-		TrackTwoDataKSN      string         `json:",omitempty"`
-		InitializationVector string         `json:",omitempty"`
-		IsDataInTLVFormat    bool           `json:",omitempty"`
+		EncryptionType       EncryptionType `json:"EncryptionType,omitempty"`
+		TrackOneDataKSN      string         `json:"TrackOneDataKSN,omitempty"`
+		TrackTwoDataKSN      string         `json:"TrackTwoDataKSN,omitempty"`
+		InitializationVector string         `json:"InitializationVector,omitempty"`
+		IsDataInTLVFormat    bool           `json:"IsDataInTLVFormat,omitempty"`
 	}
 
 	PinPadInformation struct {
@@ -192,18 +192,51 @@ type (
 	}
 
 	ConfirmResponse struct {
-		ConfirmationStatus ConfirmationStatus `json:",omitempty"`
-		Status             TransactionStatus  `json:",omitempty"`
-		ReasonCode         uint16             `json:",omitempty"`
-		ReturnCode         string             `json:",omitempty"`
-		ReturnMessage      string             `json:",omitempty"`
-		Links              []*Link            `json:",omitempty"`
+		CancellationStatus CancellationStatus `json:"CancellationStatus,omitempty"`
+		ConfirmationStatus ConfirmationStatus `json:"ConfirmationStatus,omitempty"`
+		Status             TransactionStatus  `json:"Status,omitempty"`
+		ReasonCode         uint               `json:"ReasonCode,omitempty"`
+		ReturnCode         string             `json:"ReturnCode,omitempty"`
+		ReturnMessage      string             `json:"ReturnMessage,omitempty"`
+		Links              []*Link            `json:"Links,omitempty"`
 	}
 
-	ReverseRequest struct {
+	Void struct {
+		MerchantVoidId   string   `json:"MerchantVoidId"`
+		MerchantVoidDate string   `json:"MerchantVoidDate"`
+		Card             CardVoid `json:"Card"`
+	}
+
+	VoidResponse struct {
+		VoidId                    string             `json:"VoidId,omitempty"`
+		CancellationStatus        CancellationStatus `json:"CancellationStatus,omitempty"`
+		InitializationVersion     int64              `json:"InitializationVersion,omitempty"`
+		PrintMessage              interface{}        `json:"PrintMessage,omitempty"`
+		Receipt                   map[string]string  `json:"Receipt,omitempty"`
+		ConfirmationStatus        ConfirmationStatus `json:"ConfirmationStatus,omitempty"`
+		ExtendedMessage           string             `json:"ExtendedMessage,omitempty"`
+		Status                    TransactionStatus  `json:"Status,omitempty"`
+		PhysicalTransactionStatus uint               `json:"PhysicalTransactionStatus,omitempty"`
+		ReasonCode                uint               `json:"ReasonCode,omitempty"`
+		ReasonMessage             string             `json:"ReasonMessage,omitempty"`
+		ReturnCode                string             `json:"ReturnCode,omitempty"`
+		ReturnMessage             string             `json:"ReturnMessage,omitempty"`
+		Links                     []*Link            `json:"Links,omitempty"`
+	}
+
+	CardVoid struct {
+		InputMode         InputMode         `json:"InputMode"`
+		EmvData           string            `json:"EmvData"`
+		TrackOneData      string            `json:"TrackOneData,omitempty"`
+		TrackTwoData      string            `json:"TrackTwoData"`
+		EncryptedCardData EncryptedCardData `json:"EncryptedCardData"`
+	}
+
+	CancelRequest struct {
 		PaymentID       string
 		MerchantOrderId string
 		EmvData         string
+		CardVoid        CardVoid
 	}
 )
 type (
@@ -222,6 +255,7 @@ type (
 	StatusPayment      uint
 	ConfirmationStatus uint
 	TransactionStatus  uint
+	CancellationStatus uint
 )
 
 func (e Environment) WithMerchant(m Merchant) Environment {
@@ -252,14 +286,34 @@ func (c ConfirmResponse) LogValue() slog.Value {
 	)
 }
 
-func (p *Payment) LogValue() slog.Value {
+func (p Payment) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.String("payment_id", p.PaymentId),
+		slog.String("payment_id", p.ID),
 		slog.String("status", p.Status.String()),
 		slog.String("confirmation_status", p.ConfirmationStatus.String()),
 		slog.String("message", p.ExtendedMessage),
 		slog.String("return_message", p.ReturnMessage),
 	)
+}
+
+func (p *Payment) toCardVoid() CardVoid {
+	if p.CreditCard != nil {
+		return CardVoid{
+			InputMode:         p.CreditCard.InputMode,
+			EmvData:           p.CreditCard.EmvData,
+			TrackOneData:      p.CreditCard.TrackOneData,
+			TrackTwoData:      p.CreditCard.TrackTwoData,
+			EncryptedCardData: p.CreditCard.EncryptedCardData,
+		}
+	}
+
+	return CardVoid{
+		InputMode:         p.DebitCard.InputMode,
+		EmvData:           p.DebitCard.EmvData,
+		TrackOneData:      p.DebitCard.TrackOneData,
+		TrackTwoData:      p.DebitCard.TrackTwoData,
+		EncryptedCardData: p.DebitCard.EncryptedCardData,
+	}
 }
 
 func (p *Payment) getLink(rel string) (Link, bool) {

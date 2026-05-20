@@ -9,21 +9,21 @@ import (
 func ParseTransactionStatus(s string) (TransactionStatus, error) {
 	var c TransactionStatus
 
-	switch strings.ToLower(s) {
-	case "notfinished":
+	switch strings.ToUpper(s) {
+	case "NOTFINISHED":
 		c = TransactionStatusNotFinished
-	case "authorized":
+	case "AUTHORIZED":
 		c = TransactionStatusAuthorized
-	case "paid":
+	case "PAID":
 		c = TransactionStatusPaid
-	case "denied":
+	case "DENIED":
 		c = TransactionStatusDenied
-	case "canceled":
-		c = TransactionStatusCanceled
-	case "aborted":
+	case "CANCELLED":
+		c = TransactionStatusCancelled
+	case "ABORTED":
 		c = TransactionStatusAborted
 	default:
-		return 0, fmt.Errorf("invalid TransactionStatus: %s", s)
+		return TransactionStatus(0), fmt.Errorf("invalid TransactionStatus: %s", s)
 	}
 
 	return c, nil

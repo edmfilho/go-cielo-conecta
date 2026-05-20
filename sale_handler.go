@@ -9,7 +9,7 @@ import (
 
 type SaleInterface interface {
 	Authorize(ctx context.Context) (Sale, error)
-	Confirm(ctx context.Context, issuerScriptResults ...string) (ConfirmResponse, error)
+	Confirm(ctx context.Context) (ConfirmResponse, error)
 
 	SetInstallments(installments int) SaleInterface
 	SetInterest(interestType Interest) SaleInterface
@@ -71,7 +71,7 @@ func (h *SaleHandler) SetInstallments(installments int) SaleInterface {
 	return h
 }
 
-// Authorize validates the sale data and sends a requestBody to the API to authorize the payment.
+// Authorize validates the sale info and sends a requestBody to the API to authorize the payment.
 // Returns the authorized sale with payment details or an error if the validation fails or if there is an issue with the API requestBody.
 func (h *SaleHandler) Authorize(ctx context.Context) (Sale, error) {
 	created := Sale{}
@@ -96,7 +96,7 @@ func (h *SaleHandler) Authorize(ctx context.Context) (Sale, error) {
 		return Sale{}, err
 	}
 
-	h.Sale.Payment.PaymentId = created.Payment.PaymentId
+	h.Sale.Payment.ID = created.Payment.ID
 	h.Sale.Payment.Status = created.Payment.Status
 	h.Sale.Payment.ConfirmationStatus = created.Payment.ConfirmationStatus
 
@@ -110,26 +110,13 @@ func (h *SaleHandler) Authorize(ctx context.Context) (Sale, error) {
 // ConfirmPayment confirms a payment with the provided issuer script results.
 // Returns the confirmation result or an error if the validation fails or if there is an issue with the API requestBody.
 //
-// PUT /1/physicalSales/{PaymentId}/confirmation
-func (h *SaleHandler) Confirm(ctx context.Context, issuerScriptResults ...string) (ConfirmResponse, error) {
+// PUT /1/physicalSales/{ID}/confirmation
+func (h *SaleHandler) Confirm(ctx context.Context) (ConfirmResponse, error) {
 	var response ConfirmResponse
 
-	body := map[string]string{
-		"EmvData":             h.Sale.Payment.getEmvData(),
-		"IssuerScriptResults": "0000",
-	}
+	body := map[string]string{"EmvData": h.Sale.Payment.getEmvData()}
 
-	if len(issuerScriptResults) > 0 {
-		body["IssuerScriptResults"] = issuerScriptResults[0]
-	}
-
-	select {
-	case <-ctx.Done():
-		return response, ctx.Err()
-	default:
-	}
-
-	req, err := h.client.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/1/physicalSales/%s/confirmation", h.client.env.APIUrl, h.Sale.Payment.PaymentId), body)
+	req, err := h.client.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/1/physicalSales/%s/confirmation", h.client.env.APIUrl, h.Sale.Payment.ID), body)
 	if err != nil {
 		return response, err
 	}

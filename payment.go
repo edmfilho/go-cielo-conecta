@@ -3,6 +3,7 @@ package go_cielo_conecta
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -38,23 +39,19 @@ func (c *Client) CreateSale(info SaleInfo) SaleInterface {
 }
 
 func (c *Client) GetPaymentByID(ctx context.Context, paymentId string) (Sale, error) {
-	var sale []Sale
+	var sale Sale
 
 	req, err := c.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/1/physicalSales/%s", c.env.APIQueryUrl, paymentId), nil)
 	if err != nil {
-		return Sale{}, err
+		return sale, err
 	}
 
 	err = c.Send(req, &sale)
 	if err != nil {
-		return Sale{}, err
+		return sale, err
 	}
 
-	if len(sale) > 0 {
-		return sale[0], nil
-	}
-
-	return Sale{}, nil
+	return sale, nil
 }
 
 func (c *Client) GetPaymentByOrderID(ctx context.Context, orderID string, date ...time.Time) (Sale, error) {
@@ -84,13 +81,31 @@ func (c *Client) GetPaymentByOrderID(ctx context.Context, orderID string, date .
 }
 
 func (c *Client) ReversePayment(ctx context.Context, sale Sale) (ConfirmResponse, error) {
-	c.LogInfo("Attempting to reverse payment", "payment", sale.Payment, "orderId", sale.MerchantOrderId)
-
-	cancel := newCancelHandler(ctx, c, ReverseRequest{
-		PaymentID:       sale.Payment.PaymentId,
+	cancel := newCancelHandler(c, CancelRequest{
+		PaymentID:       sale.Payment.ID,
 		MerchantOrderId: sale.MerchantOrderId,
 		EmvData:         sale.Payment.getEmvData(),
 	})
 
-	return cancel.TryReversePayment()
+	c.LogInfo("Attempting to reverse payment", slog.String("orderId", sale.MerchantOrderId), "payment", sale.Payment)
+
+	return cancel.TryReversePayment(ctx)
+}
+
+func (c *Client) CancelPayment(ctx context.Context, sale Sale) (ConfirmResponse, error) {
+	cancel := newCancelHandler(c, CancelRequest{
+		PaymentID:       sale.Payment.ID,
+		MerchantOrderId: sale.MerchantOrderId,
+		CardVoid:        sale.Payment.toCardVoid(),
+	})
+
+	c.LogInfo("Attempting to cancel payment", slog.String("OrderID", sale.MerchantOrderId), "payment", sale.Payment)
+
+	voidResponde, err := cancel.CancelPayment(ctx, time.Now().Format("20060102150405"))
+	if err != nil {
+		return ConfirmResponse{}, err
+	}
+
+	return cancel.ConfirmCancel(ctx, voidResponde.VoidId)
+
 }

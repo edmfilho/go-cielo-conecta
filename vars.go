@@ -68,8 +68,8 @@ const (
 	TransactionStatusAuthorized
 	TransactionStatusPaid
 	TransactionStatusDenied
-	TransactionStatusCanceled = iota + 6
-	TransactionStatusAborted  = iota + 8
+	TransactionStatusCancelled = iota + 6
+	TransactionStatusAborted   = iota + 8
 )
 
 var (
