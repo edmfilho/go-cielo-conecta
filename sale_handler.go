@@ -1,14 +1,15 @@
 package go_cielo_conecta
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
 )
 
 type SaleInterface interface {
-	Authorize() (Sale, error)
-	ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error)
-	Reverse(confirmedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error)
+	Authorize(ctx context.Context) (Sale, error)
+	Confirm(ctx context.Context, issuerScriptResults ...string) (ConfirmResponse, error)
 
 	SetInstallments(installments int) SaleInterface
 	SetInterest(interestType Interest) SaleInterface
@@ -29,10 +30,6 @@ type SaleHandler struct {
 
 func (h *SaleHandler) Get() Sale {
 	return h.Sale
-}
-
-func newSaleHandler(c *Client, s Sale) SaleInterface {
-	return &SaleHandler{client: c, Sale: s}
 }
 
 func (h *SaleHandler) WithCreditCard(cc CreditCard) SaleInterface {
@@ -76,42 +73,46 @@ func (h *SaleHandler) SetInstallments(installments int) SaleInterface {
 
 // Authorize validates the sale data and sends a requestBody to the API to authorize the payment.
 // Returns the authorized sale with payment details or an error if the validation fails or if there is an issue with the API requestBody.
-func (h *SaleHandler) Authorize() (Sale, error) {
-	salePayed := Sale{}
+func (h *SaleHandler) Authorize(ctx context.Context) (Sale, error) {
+	created := Sale{}
 
 	if err := h.validate(); err != nil {
-		return salePayed, err
+		return created, err
 	}
 
-	req, err := h.client.NewRequest("POST", fmt.Sprintf("%s%s", h.client.env.APIUrl, "/1/physicalSales/"), h.Sale)
+	select {
+	case <-ctx.Done():
+		return Sale{}, ctx.Err()
+	default:
+	}
+
+	req, err := h.client.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s%s", h.client.env.APIUrl, "/1/physicalSales/"), h.Sale)
 	if err != nil {
-		return salePayed, err
+		return Sale{}, err
 	}
 
-	err = h.client.Send(req, &salePayed)
+	err = h.client.Send(req, &created)
 	if err != nil {
-		return salePayed, err
+		return Sale{}, err
 	}
 
-	if salePayed.Payment != nil && salePayed.Payment.Status != StatusPaymentConfirmed {
-		return salePayed, ErrPaymentIsNotConfirmed
+	h.Sale.Payment.PaymentId = created.Payment.PaymentId
+	h.Sale.Payment.Status = created.Payment.Status
+	h.Sale.Payment.ConfirmationStatus = created.Payment.ConfirmationStatus
+
+	if created.Payment.Status != StatusPaymentConfirmed {
+		return created, errors.Join(ErrPaymentIsNotConfirmed, fmt.Errorf("status: %s", created.Payment.Status))
 	}
 
-	return salePayed, nil
+	return created, nil
 }
 
 // ConfirmPayment confirms a payment with the provided issuer script results.
 // Returns the confirmation result or an error if the validation fails or if there is an issue with the API requestBody.
 //
 // PUT /1/physicalSales/{PaymentId}/confirmation
-func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error) {
-	if authorizedSale.Payment == nil {
-		return ConfirmResponse{}, ErrPaymentRequired
-	}
-
+func (h *SaleHandler) Confirm(ctx context.Context, issuerScriptResults ...string) (ConfirmResponse, error) {
 	var response ConfirmResponse
-
-	href := fmt.Sprintf("%s/1/physicalSales/%s/confirmation", h.client.env.APIUrl, authorizedSale.Payment.PaymentId)
 
 	body := map[string]string{
 		"EmvData":             h.Sale.Payment.getEmvData(),
@@ -122,7 +123,13 @@ func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ..
 		body["IssuerScriptResults"] = issuerScriptResults[0]
 	}
 
-	req, err := h.client.NewRequest("PUT", href, body)
+	select {
+	case <-ctx.Done():
+		return response, ctx.Err()
+	default:
+	}
+
+	req, err := h.client.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/1/physicalSales/%s/confirmation", h.client.env.APIUrl, h.Sale.Payment.PaymentId), body)
 	if err != nil {
 		return response, err
 	}
@@ -133,21 +140,6 @@ func (h *SaleHandler) ConfirmPayment(authorizedSale Sale, issuerScriptResults ..
 	}
 
 	return response, nil
-}
-
-// ReversePayment must be called when payment returns success. It initiates the reversal process for a given sale, allowing for the cancellation of a previously authorized payment.
-// The method accepts a Sale object and an optional issuerScriptsResults string, which can be used to provide additional information for the reversal process.
-//
-// Depending on whether the Sale object contains a PaymentId, the method will choose the appropriate reversal endpoint (either by PaymentId or by OrderId) and send a DELETE requestBody to the API.
-// It returns a ConfirmResponse indicating the result of the reversal operation or an error if the requestBody fails.
-func (h *SaleHandler) Reverse(authorizedSale Sale, issuerScriptResults ...string) (ConfirmResponse, error) {
-	emvData := h.Sale.Payment.getEmvData()
-
-	cancel := newCancelHandler(h.client, emvData, issuerScriptResults...)
-
-	h.client.LogInfo("trying to reverse payment", "payment", authorizedSale.Payment)
-
-	return cancel.ReverseWithPaymentID(authorizedSale.Payment.PaymentId)
 }
 
 func (h *SaleHandler) validate() error {

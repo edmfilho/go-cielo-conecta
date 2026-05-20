@@ -1,65 +1,67 @@
 package go_cielo_conecta
 
 import (
+	"context"
 	"fmt"
-	"strings"
+	"net/http"
 )
 
 type CancelInterface interface {
-	ReverseWithPaymentID(paymentID string) (ConfirmResponse, error)
-	ReverseWithOrderID(orderID string) (ConfirmResponse, error)
+	TryReversePayment() (ConfirmResponse, error)
 }
 
 type CancelHandler struct {
 	client       *Client
-	requestBody  map[string]string
-	urlPaymentID string
-	urlOrderID   string
+	ctx          context.Context
+	data         ReverseRequest
+	hasPaymentID bool
 }
 
-func newCancelHandler(c *Client, emvData string, issuerScriptsResults ...string) CancelInterface {
-	urlPaymentID := fmt.Sprintf("%s/1/physicalSales/{PaymentID}", c.env.APIUrl)
-	urlOrderID := fmt.Sprintf("%s/1/physicalSales/orderId/{OrderID}", c.env.APIUrl)
+func newCancelHandler(ctx context.Context, c *Client, request ReverseRequest) CancelInterface {
+	var (
+		hasPaymentID = false
+	)
 
-	body := map[string]string{
-		"EmvData":             emvData,
-		"IssuerScriptResults": "0000",
+	if request.PaymentID != "" {
+		hasPaymentID = true
 	}
 
-	if len(issuerScriptsResults) > 0 {
-		body["IssuerScriptResults"] = issuerScriptsResults[0]
+	return &CancelHandler{
+		client:       c,
+		ctx:          ctx,
+		data:         request,
+		hasPaymentID: hasPaymentID,
 	}
-
-	return &CancelHandler{client: c, requestBody: body, urlPaymentID: urlPaymentID, urlOrderID: urlOrderID}
 }
 
-func (h *CancelHandler) ReverseWithPaymentID(paymentID string) (ConfirmResponse, error) {
-	var result ConfirmResponse
+func (h *CancelHandler) TryReversePayment() (ConfirmResponse, error) {
+	var (
+		result ConfirmResponse
+		req    *http.Request
+		err    error
+	)
 
-	req, err := h.client.NewRequest("DELETE", strings.Replace(h.urlPaymentID, "{PaymentID}", paymentID, 1), h.requestBody)
+	body := map[string]string{"EmvData": h.data.EmvData}
+
+	if h.hasPaymentID {
+		req, err = h.client.NewRequestWithContext(h.ctx, http.MethodDelete,
+			fmt.Sprintf("%s/1/physicalSales/%s", h.client.env.APIUrl, h.data.PaymentID),
+			body,
+		)
+	} else {
+		req, err = h.client.NewRequestWithContext(h.ctx, http.MethodDelete,
+			fmt.Sprintf("%s/1/physicalSales/MerchantOrderId/%s", h.client.env.APIUrl, h.data.MerchantOrderId),
+			body,
+		)
+	}
+
 	if err != nil {
 		return ConfirmResponse{}, err
 	}
 
 	err = h.client.Send(req, &result)
 	if err != nil {
-		return ConfirmResponse{}, err
-	}
-
-	return result, nil
-}
-
-func (h *CancelHandler) ReverseWithOrderID(orderID string) (ConfirmResponse, error) {
-	var result ConfirmResponse
-
-	req, err := h.client.NewRequest("DELETE", strings.Replace(h.urlOrderID, "{OrderID}", orderID, 1), h.requestBody)
-	if err != nil {
-		return ConfirmResponse{}, err
-	}
-
-	err = h.client.Send(req, &result)
-	if err != nil {
-		return ConfirmResponse{}, err
+		return result, err
 	}
 
 	return result, nil

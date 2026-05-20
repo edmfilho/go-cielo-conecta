@@ -18,8 +18,12 @@ type ClientInterface interface {
 	NewRequestWithContext(ctx context.Context, method, path string, body any) (*http.Request, error)
 	Send(req *http.Request, body any) error
 
-	CreatePayment(payment Info) SaleInterface
-	GetPaymentBy(param GetParam, query string, transactionDate ...time.Time) (*Sale, error)
+	CreateSale(info SaleInfo) SaleInterface
+
+	GetPaymentByID(ctx context.Context, paymentId string) (Sale, error)
+	GetPaymentByOrderID(ctx context.Context, orderID string, date ...time.Time) (Sale, error)
+	ReversePayment(ctx context.Context, sale Sale) (ConfirmResponse, error)
+
 	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
 
 	Close()
@@ -54,13 +58,11 @@ func NewClient(env Environment, log ...*slog.Logger) (ClientInterface, error) {
 		return nil, err
 	}
 
-	c.LogInfo(fmt.Sprintf("Successfully got access_token, expires in %s", (c.token.ExpiresIn * time.Second).String()))
+	c.LogInfo(fmt.Sprintf("Cielo access_token expires in %s", (c.token.ExpiresIn * time.Second).String()))
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
+	c.wg.Go(func() {
 		c.refreshToken(ctx)
-	}()
+	})
 
 	return &c, nil
 }
@@ -116,7 +118,7 @@ func (c *Client) Send(req *http.Request, v any) error {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "go-cielo-conecta-client/1.0")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token.AccessToken))
+	req.Header.Set("Authorization", "Bearer "+c.token.AccessToken)
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
@@ -125,10 +127,17 @@ func (c *Client) Send(req *http.Request, v any) error {
 
 	defer resp.Body.Close()
 
-	c.logger(req, resp)
-
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return ErrSendingRequest
+		c.logger(req, resp)
+
+		var errResponse MultiError
+		err = json.NewDecoder(resp.Body).Decode(&errResponse)
+		if err != nil {
+			return errors.Join(ErrSendingRequest, err)
+		}
+
+		errResponse[0].Response = resp
+		return errResponse
 	}
 
 	return json.NewDecoder(resp.Body).Decode(v)

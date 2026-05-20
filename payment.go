@@ -1,84 +1,96 @@
 package go_cielo_conecta
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"net/http"
 	"time"
 )
 
-// GetParam defines the type for parameters used in GetPaymentBy method to specify the search criteria (PaymentId or MerchantOrderId).
-type GetParam string
-
-type Info struct {
+type SaleInfo struct {
 	OrderID   string
 	Amount    uint32 // Amount in BRL cents. e.g., for R$ 10.50, Amount should be 1050.
 	ProductID uint
 }
 
-var (
-	PaymentID       = GetParam("PaymentId")
-	MerchantOrderID = GetParam("MerchantOrderId")
-)
-
-// CreatePayment initializes a new payment with the provided order ID, amount (in cents), and product ID.
+// CreateSale initializes a new payment with the provided order ID, amount (in cents), and product ID.
 // It sets default values for installments, interest, capture, and payment date/time.
 // The amount is converted to cents and rounding to the nearest integer.
 //
 // The method returns a SaleInterface that can be used to further customize the sale or execute it.
-func (c *Client) CreatePayment(payment Info) SaleInterface {
+func (c *Client) CreateSale(info SaleInfo) SaleInterface {
 	p := Payment{
 		Installments:           1,          // Can be changed with SetInstallments().
 		Interest:               ByMerchant, // Can be changed with SetInterest().
 		Capture:                true,
 		PaymentDateTime:        time.Now().Format("2006-01-02T15:04:05"),
-		Amount:                 payment.Amount,
-		ProductId:              payment.ProductID,
+		Amount:                 info.Amount,
+		ProductId:              info.ProductID,
 		SubordinatedMerchantId: c.env.merchant.ID,
 	}
 
 	s := Sale{
-		MerchantOrderId: payment.OrderID,
-		Payment:         &p,
+		MerchantOrderId: info.OrderID,
+		Payment:         p,
 	}
 
-	return newSaleHandler(c, s)
+	return &SaleHandler{client: c, Sale: s}
 }
 
-// GetPaymentBy retrieves a payment based on the specified parameter (PaymentId or MerchantOrderId) and query value.
-// It constructs the appropriate endpoint URL based on the parameter and query, and optionally includes a transaction date.
-// The method sends a GET requestBody to the API and returns the retrieved Sale object or an error if the requestBody fails.
-//
-// GET /1/physicalSales/{PaymentId}
-// GET /1/physicalSales/MerchantOrderId/{MerchantOrderId}
-func (c *Client) GetPaymentBy(param GetParam, query string, transactionDate ...time.Time) (sale *Sale, err error) {
-	var (
-		req      *http.Request
-		endpoint = "/1/physicalSales"
-	)
+func (c *Client) GetPaymentByID(ctx context.Context, paymentId string) (Sale, error) {
+	var sale []Sale
 
-	switch param {
-	case PaymentID:
-		endpoint += fmt.Sprintf("/%s", query)
-	case MerchantOrderID:
-		endpoint += fmt.Sprintf("/MerchantOrderId/%s", query)
-	default:
-		return nil, errors.New("invalid param")
-	}
-
-	if len(transactionDate) > 0 {
-		endpoint += fmt.Sprintf("?transactionDate=%s", transactionDate[0].Format("2006/01/02"))
-	}
-
-	req, err = c.NewRequest("GET", fmt.Sprintf("%s%s", c.env.APIQueryUrl, query), nil)
+	req, err := c.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/1/physicalSales/%s", c.env.APIQueryUrl, paymentId), nil)
 	if err != nil {
-		return nil, err
+		return Sale{}, err
 	}
 
 	err = c.Send(req, &sale)
 	if err != nil {
-		return nil, err
+		return Sale{}, err
 	}
 
-	return sale, nil
+	if len(sale) > 0 {
+		return sale[0], nil
+	}
+
+	return Sale{}, nil
+}
+
+func (c *Client) GetPaymentByOrderID(ctx context.Context, orderID string, date ...time.Time) (Sale, error) {
+	url := fmt.Sprintf("%s/1/physicalSales/MerchantOrderId/%s", c.env.APIQueryUrl, orderID)
+
+	var sale []Sale
+
+	if len(date) > 0 {
+		url = fmt.Sprintf("%s?transactionDate=%s", url, date[0].Format("2006/01/02"))
+	}
+
+	req, err := c.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return Sale{}, err
+	}
+
+	err = c.Send(req, &sale)
+	if err != nil {
+		return Sale{}, err
+	}
+
+	if len(sale) > 0 {
+		return sale[0], nil
+	}
+
+	return Sale{}, nil
+}
+
+func (c *Client) ReversePayment(ctx context.Context, sale Sale) (ConfirmResponse, error) {
+	c.LogInfo("Attempting to reverse payment", "payment", sale.Payment, "orderId", sale.MerchantOrderId)
+
+	cancel := newCancelHandler(ctx, c, ReverseRequest{
+		PaymentID:       sale.Payment.PaymentId,
+		MerchantOrderId: sale.MerchantOrderId,
+		EmvData:         sale.Payment.getEmvData(),
+	})
+
+	return cancel.TryReversePayment()
 }

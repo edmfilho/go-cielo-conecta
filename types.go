@@ -49,14 +49,12 @@ type (
 		Message  string         `json:",omitempty"`
 	}
 
-	MultiError struct {
-		Errors []ErrorResponse `json:"errors"`
-	}
+	MultiError []ErrorResponse
 
 	Sale struct {
 		MerchantOrderId string    `json:",omitempty"`
 		Customer        *Customer `json:",omitempty"`
-		Payment         *Payment  `json:",omitempty"`
+		Payment         Payment   `json:",omitempty"`
 	}
 
 	Customer struct {
@@ -106,7 +104,7 @@ type (
 		AuthorizationCode         string                `json:",omitempty"`
 		ProofOfSale               string                `json:",omitempty"`
 		InitializationVersion     int64                 `json:",omitempty"`
-		ConfirmationStatus        uint                  `json:",omitempty"`
+		ConfirmationStatus        ConfirmationStatus    `json:",omitempty"`
 		EmvResponseData           string                `json:",omitempty"`
 		SubordinatedMerchantId    string                `json:",omitempty"`
 		OfflinePaymentType        string                `json:",omitempty"`
@@ -201,6 +199,12 @@ type (
 		ReturnMessage      string             `json:",omitempty"`
 		Links              []*Link            `json:",omitempty"`
 	}
+
+	ReverseRequest struct {
+		PaymentID       string
+		MerchantOrderId string
+		EmvData         string
+	}
 )
 type (
 	IdentityType            string
@@ -227,28 +231,38 @@ func (e Environment) WithMerchant(m Merchant) Environment {
 
 // Error method implementation for ErrorResponse
 func (er ErrorResponse) Error() string {
-	return fmt.Sprintf("%s %s: %3d %s", er.Response.Request.Method, er.Response.Request.URL, er.Response.StatusCode, er.Message)
+	return fmt.Sprintf("%s %s %s msg=%s", er.Response.Status, er.Response.Request.Method, er.Response.Request.URL, er.Message)
 }
 
 func (er MultiError) Error() string {
 	var msgs []string
-	for _, err := range er.Errors {
+	for _, err := range er {
 		msgs = append(msgs, err.Error())
 	}
 
 	return strings.Join(msgs, "; ")
 }
 
-func (p Payment) LogValue() slog.Value {
+func (c ConfirmResponse) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("return_message", c.ReturnMessage),
+		slog.String("status", c.Status.String()),
+		slog.String("confirmation_status", c.ConfirmationStatus.String()),
+		slog.Uint64("reason_code", uint64(c.ReasonCode)),
+	)
+}
+
+func (p *Payment) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("payment_id", p.PaymentId),
 		slog.String("status", p.Status.String()),
+		slog.String("confirmation_status", p.ConfirmationStatus.String()),
 		slog.String("message", p.ExtendedMessage),
 		slog.String("return_message", p.ReturnMessage),
 	)
 }
 
-func (p Payment) getLink(rel string) (Link, bool) {
+func (p *Payment) getLink(rel string) (Link, bool) {
 	if len(p.Links) == 0 {
 		return Link{}, false
 	}
@@ -262,7 +276,7 @@ func (p Payment) getLink(rel string) (Link, bool) {
 	return Link{}, false
 }
 
-func (p Payment) getEmvData() string {
+func (p *Payment) getEmvData() string {
 	if p.CreditCard != nil {
 		return p.CreditCard.EmvData
 	}
