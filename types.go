@@ -316,18 +316,12 @@ func (p *Payment) toCardVoid() CardVoid {
 	}
 }
 
-func (p *Payment) getLink(rel string) (Link, bool) {
-	if len(p.Links) == 0 {
-		return Link{}, false
-	}
+func (s *Sale) IsReversible() bool {
+	return s.Payment.Status == StatusPaymentConfirmed && s.Payment.ConfirmationStatus != ConfirmationStatusConfirmed
+}
 
-	for _, l := range p.Links {
-		if l.Rel == rel {
-			return l, true
-		}
-	}
-
-	return Link{}, false
+func (s *Sale) IsCancellable() bool {
+	return s.Payment.Status == StatusPaymentConfirmed && s.Payment.ConfirmationStatus == ConfirmationStatusConfirmed
 }
 
 func (p *Payment) getEmvData() string {
