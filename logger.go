@@ -52,14 +52,18 @@ func readBody(r *http.Request, resp *http.Response) LogInfo {
 		Body:       nil,
 	}
 
+	if r.Method == http.MethodGet && resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return logInfo
+	}
+
 	content, _ := io.ReadAll(resp.Body)
 
-	if len(content) > maxLogSize {
-		// Restore the original body for further processing
+	if int64(len(content)) > maxLogSize {
 		resp.Body = io.NopCloser(bytes.NewBuffer(content))
 		return logInfo
 	}
 
+	// Restore the original body for further processing
 	resp.Body = io.NopCloser(bytes.NewBuffer(content))
 
 	logInfo.Body = content
