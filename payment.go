@@ -3,7 +3,6 @@ package go_cielo_conecta
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 )
@@ -87,8 +86,6 @@ func (c *Client) ReversePayment(ctx context.Context, sale Sale) (ConfirmResponse
 		EmvData:         sale.Payment.getEmvData(),
 	})
 
-	c.LogInfo("Attempting to reverse payment", slog.String("orderId", sale.MerchantOrderId), "payment", sale.Payment)
-
 	return cancel.TryReversePayment(ctx)
 }
 
@@ -98,8 +95,6 @@ func (c *Client) CancelPayment(ctx context.Context, sale Sale) (ConfirmResponse,
 		MerchantOrderId: sale.MerchantOrderId,
 		CardVoid:        sale.Payment.toCardVoid(),
 	})
-
-	c.LogInfo("Attempting to cancel payment", slog.String("OrderID", sale.MerchantOrderId), "payment", sale.Payment)
 
 	voidResponde, err := cancel.CancelPayment(ctx, time.Now().Format("20060102150405"))
 	if err != nil {

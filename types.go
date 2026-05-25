@@ -2,10 +2,8 @@ package go_cielo_conecta
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -44,9 +42,9 @@ type (
 	}
 
 	ErrorResponse struct {
-		Response *http.Response `json:"-"`
-		Code     int            `json:",omitempty"`
-		Message  string         `json:",omitempty"`
+		Code     int    `json:",omitempty"`
+		Message  string `json:",omitempty"`
+		Response any    `json:"-"`
 	}
 
 	MultiError []ErrorResponse
@@ -263,18 +261,11 @@ func (e Environment) WithMerchant(m Merchant) Environment {
 	return e
 }
 
-// Error method implementation for ErrorResponse
-func (er ErrorResponse) Error() string {
-	return fmt.Sprintf("%s %s %s msg=%s", er.Response.Status, er.Response.Request.Method, er.Response.Request.URL, er.Message)
-}
-
-func (er MultiError) Error() string {
-	var msgs []string
-	for _, err := range er {
-		msgs = append(msgs, err.Error())
-	}
-
-	return strings.Join(msgs, "; ")
+func (s Sale) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("order_id", s.MerchantOrderId),
+		slog.Any("payment", s.Payment),
+	)
 }
 
 func (c ConfirmResponse) LogValue() slog.Value {
@@ -291,8 +282,8 @@ func (p Payment) LogValue() slog.Value {
 		slog.String("payment_id", p.ID),
 		slog.String("status", p.Status.String()),
 		slog.String("confirmation_status", p.ConfirmationStatus.String()),
-		slog.String("message", p.ExtendedMessage),
 		slog.String("return_message", p.ReturnMessage),
+		slog.String("extended_message", p.ExtendedMessage),
 	)
 }
 

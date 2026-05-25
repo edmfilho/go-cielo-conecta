@@ -130,14 +130,12 @@ func (c *Client) Send(req *http.Request, v any) error {
 	c.logger(req, resp)
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		var errResponse MultiError
-		err = json.NewDecoder(resp.Body).Decode(&errResponse)
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return errors.Join(ErrSendingRequest, err)
+			return fmt.Errorf("request failed with status code %3d, failed to decode body: %v", resp.StatusCode, err)
 		}
 
-		errResponse[0].Response = resp
-		return errResponse
+		return fmt.Errorf("request failed with status code %3d, body=%s", resp.StatusCode, string(data))
 	}
 
 	return json.NewDecoder(resp.Body).Decode(v)

@@ -1,8 +1,6 @@
 package go_cielo_conecta
 
 import (
-	"bytes"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,15 +14,13 @@ type LogInfo struct {
 	Method     string `json:"method"`
 	Status     string `json:"status"`
 	StatusCode int    `json:"status_code"`
-	Body       []byte `json:"body,omitempty"`
 }
 
 func (l LogInfo) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.String("method", l.Method),
 		slog.String("status", l.Status),
+		slog.String("method", l.Method),
 		slog.String("url", l.URL),
-		slog.String("body", string(l.Body)),
 	)
 }
 
@@ -33,18 +29,23 @@ func (c *Client) logger(r *http.Request, resp *http.Response) {
 		return
 	}
 
-	l := readBody(r, resp)
+	l := LogInfo{
+		URL:        r.URL.String(),
+		Method:     r.Method,
+		Status:     resp.Status,
+		StatusCode: resp.StatusCode,
+	}
 
 	if l.StatusCode < 200 || l.StatusCode > 299 {
-		c.log.Error("error executing the request", "request", l)
+		c.LogError("error executing the request", "info", l)
 		return
 	}
 
-	c.log.Info("request was successful", "request", l)
+	c.LogInfo("request was successful", "info", l)
 }
 
-func readBody(r *http.Request, resp *http.Response) LogInfo {
-	logInfo := LogInfo{
+/* func readBody(r *http.Request, resp *http.Response) LogInfo {
+	l := LogInfo{
 		URL:        r.URL.String(),
 		Method:     r.Method,
 		Status:     resp.Status,
@@ -53,22 +54,22 @@ func readBody(r *http.Request, resp *http.Response) LogInfo {
 	}
 
 	if r.Method == http.MethodGet && resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return logInfo
+		return l
 	}
 
 	content, _ := io.ReadAll(resp.Body)
 
 	if int64(len(content)) > maxLogSize {
 		resp.Body = io.NopCloser(bytes.NewBuffer(content))
-		return logInfo
+		return l
 	}
 
 	// Restore the original body for further processing
 	resp.Body = io.NopCloser(bytes.NewBuffer(content))
 
-	logInfo.Body = content
-	return logInfo
-}
+	l.Body = content
+	return l
+} */
 
 func (c *Client) SetLogger(slog *slog.Logger) {
 	c.log = slog.With("source", "cielo-conecta-client")

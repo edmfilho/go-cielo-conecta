@@ -33,15 +33,12 @@ func (c *Client) getToken() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		var errResponse = MultiError{{Response: resp}}
-
-		data, _ := io.ReadAll(resp.Body)
-
-		if err := json.Unmarshal(data, &errResponse); err != nil {
-			return fmt.Errorf("cielo.getToken: %v", string(data))
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("cielo.getToken: request failed with status code %3d, failed to decode body=%v", resp.StatusCode, err)
 		}
 
-		return fmt.Errorf("cielo.getToken: %s", errResponse.Error())
+		return fmt.Errorf("cielo.getToken: request failed with status code %3d, body=%s", resp.StatusCode, string(data))
 	}
 
 	var token tokenResponse
