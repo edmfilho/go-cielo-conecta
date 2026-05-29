@@ -23,7 +23,7 @@ type ClientInterface interface {
 	GetPaymentByID(ctx context.Context, paymentId string) (Sale, error)
 	GetPaymentByOrderID(ctx context.Context, orderID string, date ...time.Time) (Sale, error)
 	ReversePayment(ctx context.Context, sale Sale) (ConfirmResponse, error)
-	CancelPayment(ctx context.Context, sale Sale) (ConfirmResponse, error)
+	CancelPayment(ctx context.Context, sale Sale, merchantVoidId string) (ConfirmResponse, error)
 
 	SharedLibrary(terminalID string, subMerchantId ...string) (map[string]any, error)
 
@@ -132,10 +132,17 @@ func (c *Client) Send(req *http.Request, v any) error {
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("request failed with status code %3d, failed to decode body: %v", resp.StatusCode, err)
+			return fmt.Errorf("request failed, status=%3d, failed to decode body: %v", resp.StatusCode, err)
 		}
 
-		return fmt.Errorf("request failed with status code %3d, body=%s", resp.StatusCode, string(data))
+		errCielo := MultiErr{}
+
+		err = json.Unmarshal(data, &errCielo)
+		if err == nil && len(errCielo) > 0 {
+			return errCielo
+		}
+
+		return fmt.Errorf("request failed, status=%d, body=%s", resp.StatusCode, string(data))
 	}
 
 	return json.NewDecoder(resp.Body).Decode(v)

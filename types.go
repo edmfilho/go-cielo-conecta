@@ -2,8 +2,10 @@ package go_cielo_conecta
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,18 +43,18 @@ type (
 		ID, Secret string
 	}
 
-	ErrorResponse struct {
-		Code     int    `json:",omitempty"`
-		Message  string `json:",omitempty"`
-		Response any    `json:"-"`
+	ErrCielo struct {
+		Code    int    `json:",omitempty"`
+		Message string `json:",omitempty"`
+		Err     error  `json:"-"`
 	}
 
-	MultiError []ErrorResponse
+	MultiErr []ErrCielo
 
 	Sale struct {
-		MerchantOrderId string    `json:",omitempty"`
-		Customer        *Customer `json:",omitempty"`
-		Payment         Payment   `json:",omitempty"`
+		MerchantOrderId string    `json:"MerchantOrderId"`
+		Customer        *Customer `json:"Customer,omitempty"`
+		Payment         Payment   `json:"Payment"`
 	}
 
 	Customer struct {
@@ -96,7 +98,7 @@ type (
 		Links                     []Link                `json:",omitempty"`
 		ServiceTaxAmount          uint64                `json:",omitempty"`
 		PinPadInformation         *PinPadInformation    `json:",omitempty"`
-		PrintMessage              interface{}           `json:",omitempty"`
+		PrintMessage              any                   `json:",omitempty"`
 		ReceiptInformation        []*ReceiptInformation `json:",omitempty"`
 		Receipt                   map[string]string     `json:",omitempty"`
 		AuthorizationCode         string                `json:",omitempty"`
@@ -209,7 +211,7 @@ type (
 		VoidId                    string             `json:"VoidId,omitempty"`
 		CancellationStatus        CancellationStatus `json:"CancellationStatus,omitempty"`
 		InitializationVersion     int64              `json:"InitializationVersion,omitempty"`
-		PrintMessage              interface{}        `json:"PrintMessage,omitempty"`
+		PrintMessage              any                `json:"PrintMessage,omitempty"`
 		Receipt                   map[string]string  `json:"Receipt,omitempty"`
 		ConfirmationStatus        ConfirmationStatus `json:"ConfirmationStatus,omitempty"`
 		ExtendedMessage           string             `json:"ExtendedMessage,omitempty"`
@@ -255,6 +257,19 @@ type (
 	TransactionStatus  uint
 	CancellationStatus uint
 )
+
+func (er ErrCielo) Error() string {
+	return fmt.Sprintf("cielo_code=%d, message=%s, err_cielo=%v", er.Code, er.Message, er.Err)
+}
+
+func (me MultiErr) Error() string {
+	var errStr strings.Builder
+	for _, er := range me {
+		errStr.WriteString(er.Error())
+		errStr.WriteString("\n")
+	}
+	return errStr.String()
+}
 
 func (e Environment) WithMerchant(m Merchant) Environment {
 	e.merchant = m

@@ -73,13 +73,14 @@ const (
 )
 
 var (
-	ErrSendingRequest         = errors.New("error sending request")
-	ErrPaymentIsNotConfirmed  = errors.New("payment_status is not confirmed")
-	ErrOrderIDRequired        = errors.New("merchant_order_id is required")
-	ErrPaymentRequired        = errors.New("payment information is required")
-	ErrCardRequired           = errors.New("card information is required")
-	ErrSoftDescriptorRequired = errors.New("soft descriptor is required")
-	ErrPaymentTypeRequired    = errors.New("payment type is required")
+	ErrSendingRequest                  = errors.New("error sending request")
+	ErrPaymentIsNotConfirmed           = errors.New("payment_status is not confirmed")
+	ErrOrderIDRequired                 = errors.New("merchant_order_id is required")
+	ErrPaymentRequired                 = errors.New("payment information is required")
+	ErrCardRequired                    = errors.New("card information is required")
+	ErrSoftDescriptorRequired          = errors.New("soft descriptor is required")
+	ErrPaymentTypeRequired             = errors.New("payment type is required")
+	ErrCancellationStatusNotAuthorized = errors.New("cancellation not authorized")
 )
 
 var (

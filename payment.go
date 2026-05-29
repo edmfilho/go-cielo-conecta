@@ -89,18 +89,30 @@ func (c *Client) ReversePayment(ctx context.Context, sale Sale) (ConfirmResponse
 	return cancel.TryReversePayment(ctx)
 }
 
-func (c *Client) CancelPayment(ctx context.Context, sale Sale) (ConfirmResponse, error) {
+func (c *Client) CancelPayment(ctx context.Context, sale Sale, merchantVoidId string) (ConfirmResponse, error) {
 	cancel := newCancelHandler(c, CancelRequest{
 		PaymentID:       sale.Payment.ID,
 		MerchantOrderId: sale.MerchantOrderId,
 		CardVoid:        sale.Payment.toCardVoid(),
 	})
 
-	voidResponde, err := cancel.CancelPayment(ctx, time.Now().Format("20060102150405"))
+	var confirmResponse ConfirmResponse
+
+	voidResponse, err := cancel.CancelPayment(ctx, merchantVoidId)
 	if err != nil {
-		return ConfirmResponse{}, err
+		return confirmResponse, err
 	}
 
-	return cancel.ConfirmCancel(ctx, voidResponde.VoidId)
+	confirmResponse = ConfirmResponse{
+		CancellationStatus: voidResponse.CancellationStatus,
+		Status:             voidResponse.Status,
+		ReturnMessage:      voidResponse.ExtendedMessage,
+		ConfirmationStatus: voidResponse.ConfirmationStatus,
+	}
 
+	if voidResponse.CancellationStatus != CancellationStatusAuthorized {
+		return confirmResponse, ErrCancellationStatusNotAuthorized
+	}
+
+	return cancel.ConfirmCancel(ctx, voidResponse.VoidId)
 }
